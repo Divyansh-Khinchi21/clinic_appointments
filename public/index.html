@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CarePulse | Modern Clinic Appointment & Health Queue Platform</title>
+  <meta name="description" content="CarePulse is an end-to-end digital clinic appointment and real-time patient queue management platform built for Auriga IT placement drive.">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+
+  <!-- Navigation Bar -->
+  <header>
+    <div class="container nav-bar">
+      <div class="logo">
+        <div class="logo-icon">🏥</div>
+        <span>CarePulse</span>
+      </div>
+
+      <ul class="nav-links">
+        <li><a href="#hero" class="nav-link active" onclick="switchTab('landing')">Product Overview</a></li>
+        <li><a href="#doctors" class="nav-link" onclick="switchTab('doctors')">Find Doctors</a></li>
+        <li><a href="#appointments" class="nav-link" onclick="switchTab('appointments')">My Appointments</a></li>
+        <li><a href="#logs" class="nav-link" onclick="switchTab('logs')">System Logs</a></li>
+      </ul>
+
+      <div class="auth-buttons" id="auth-buttons">
+        <button class="btn btn-secondary" onclick="openAuthModal('login')">Login</button>
+        <button class="btn btn-primary" onclick="openAuthModal('register')">Register</button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero & Product Overview Section -->
+  <section class="hero-section" id="hero">
+    <div class="container hero-content">
+      <div>
+        <div class="hero-badge">⚡ Auriga IT Placement Drive 2026 — Builder Round</div>
+        <h1 class="hero-title">Intelligent Clinic Appointments <span>& Queue System</span></h1>
+        <p class="hero-desc">CarePulse transforms clinic consultations with real-time doctor availability, instant slot locking, emergency priority routing, and zero waiting friction.</p>
+        
+        <div style="display: flex; gap: 14px; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="switchTab('doctors')">🔍 Find & Book Doctors</button>
+          <button class="btn btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);" onclick="scrollToBrief()">📖 Read Product Brief</button>
+        </div>
+      </div>
+
+      <div class="hero-card">
+        <h3 style="color: white; margin-bottom: 20px; text-align: center; font-size: 1.3rem;">📊 Real-time Platform Summary</h3>
+        <div class="stats-grid">
+          <div class="stat-box">
+            <div class="stat-number" id="stat-doctors">8+</div>
+            <div class="stat-label">Verified Specialists</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-number" id="stat-specialties">7</div>
+            <div class="stat-label">Medical Depts</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-number" id="stat-appts">12</div>
+            <div class="stat-label">Appointments Booked</div>
+          </div>
+          <div class="stat-box">
+            <div class="stat-number" id="stat-emergency">3</div>
+            <div class="stat-label">Emergency Slots</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <main class="container">
+
+    <!-- MANDATORY LANDING PAGE BRIEF SECTION -->
+    <section class="section" id="product-brief">
+      <h2 class="section-title">💡 One-Page Product Landing Brief</h2>
+      <p class="section-subtitle">Comprehensive breakdown of CarePulse: purpose, key features, target audience, benefits, and roadmap.</p>
+
+      <div class="brief-grid">
+        <!-- 1. What it is -->
+        <div class="brief-card">
+          <div class="brief-icon">🎯</div>
+          <h3>1. What It Is</h3>
+          <p>CarePulse is a modern full-stack clinic appointment and healthcare queue management portal. It connects patients directly with verified doctors, providing real-time slot scheduling, emergency priority booking, and transparent clinic management without phone call delays.</p>
+        </div>
+
+        <!-- 2. Key Features -->
+        <div class="brief-card">
+          <div class="brief-icon">⚡</div>
+          <h3>2. Key Features</h3>
+          <ul class="feature-list">
+            <li><strong>Instant Doctor Discovery:</strong> Search by doctor name, specialty, city, or clinic.</li>
+            <li><strong>Smart Sorting & Pagination:</strong> Sort by rating, consultation fee, or experience.</li>
+            <li><strong>Twist - Emergency Priority Slot:</strong> Instant priority queue reservation for urgent cases.</li>
+            <li><strong>Full Persistence & REST APIs:</strong> SQLite relational schema with JWT authentication.</li>
+            <li><strong>Conflict-Free Scheduling:</strong> Automated slot locking prevents double bookings.</li>
+          </ul>
+        </div>
+
+        <!-- 3. Target Audience -->
+        <div class="brief-card">
+          <div class="brief-icon">👥</div>
+          <h3>3. Target Audience</h3>
+          <ul class="feature-list">
+            <li><strong>Patients & Families:</strong> Seeking immediate medical advice without long waiting hall lines.</li>
+            <li><strong>Independent Clinics & Specialists:</strong> Doctors looking for automated digital appointment books.</li>
+            <li><strong>Hospital Front Desks:</strong> Staff managing daily patient intake and emergency triage.</li>
+          </ul>
+        </div>
+
+        <!-- 4. How It Helps -->
+        <div class="brief-card">
+          <div class="brief-icon">📈</div>
+          <h3>4. How It Helps</h3>
+          <p>CarePulse cuts clinic waiting times by <strong>65%</strong>, eliminates manual paper registers, minimizes no-shows with structured status tracking, and ensures urgent emergency patients receive immediate priority routing.</p>
+        </div>
+      </div>
+
+      <!-- 5. Three Features We Would Build Next -->
+      <div style="margin-top: 32px; background: white; border-radius: var(--radius-lg); padding: 32px; border: 1px solid var(--border);">
+        <h3 style="font-size: 1.3rem; margin-bottom: 16px; color: var(--primary-dark);">🚀 3 Features We Would Build Next (Product Roadmap)</h3>
+        
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+          <div style="background: var(--bg-subtle); padding: 20px; border-radius: var(--radius-md); border-left: 4px solid var(--primary);">
+            <h4 style="margin-bottom: 6px;">1. AI Symptom Triage & Smart Specialist Recommendation</h4>
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">An intelligent AI pre-assessment module that analyzes patient symptoms in plain English/Hindi and automatically suggests the most appropriate medical specialty and doctor.</p>
+          </div>
+
+          <div style="background: var(--bg-subtle); padding: 20px; border-radius: var(--radius-md); border-left: 4px solid var(--accent);">
+            <h4 style="margin-bottom: 6px;">2. Tele-Consultation WebRTC Video Calling</h4>
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">In-browser encrypted video consultation rooms allowing remote patients to consult doctors directly inside CarePulse without downloading third-party software.</p>
+          </div>
+
+          <div style="background: var(--bg-subtle); padding: 20px; border-radius: var(--radius-md); border-left: 4px solid var(--success);">
+            <h4 style="margin-bottom: 6px;">3. Automated WhatsApp Prescription & Queue Alerts</h4>
+            <p style="font-size: 0.9rem; color: var(--text-secondary);">Automated real-time notifications via WhatsApp Business API informing patients when the doctor is 2 slots away, along with digital prescription downloads.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- DOCTOR DIRECTORY SECTION -->
+    <section class="section" id="doctors-section">
+      <h2 class="section-title">👩‍⚕️ Find & Book Verified Doctors</h2>
+      <p class="section-subtitle">Search by doctor name or specialty, filter by department, and sort by rating or consultation fee.</p>
+
+      <!-- Search & Filter Card -->
+      <div class="filter-card">
+        <div class="search-row">
+          <div class="search-input-group">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="search-input" placeholder="Search by doctor name, specialty, or clinic..." oninput="handleSearch()">
+          </div>
+
+          <select class="select-control" id="sort-select" onchange="handleSortChange()">
+            <option value="rating-DESC">Rating: High to Low</option>
+            <option value="fee-ASC">Fee: Low to High</option>
+            <option value="fee-DESC">Fee: High to Low</option>
+            <option value="experience-DESC">Experience: High to Low</option>
+            <option value="name-ASC">Name: A to Z</option>
+          </select>
+        </div>
+
+        <!-- Specialty Filter Pills -->
+        <div class="specialty-pills" id="specialty-pills">
+          <div class="pill active" onclick="filterSpecialty('All')">All Specialties</div>
+          <!-- Populated via JS -->
+        </div>
+      </div>
+
+      <!-- Doctors Cards Grid -->
+      <div class="doctors-grid" id="doctors-container">
+        <!-- Loaded via JS -->
+      </div>
+
+      <!-- Pagination Controls -->
+      <div class="pagination-bar">
+        <div class="page-info" id="page-info">Showing page 1 of 1</div>
+        <div class="page-buttons">
+          <button class="btn btn-secondary btn-sm" id="btn-prev" onclick="changePage(-1)" disabled>Previous</button>
+          <button class="btn btn-secondary btn-sm" id="btn-next" onclick="changePage(1)" disabled>Next</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- MY APPOINTMENTS SECTION -->
+    <section class="section" id="appointments-section" style="display: none;">
+      <h2 class="section-title">📅 My Booked Appointments</h2>
+      <p class="section-subtitle">Manage your scheduled clinic consultations, emergency priority requests, and appointment statuses.</p>
+
+      <div class="appointments-grid" id="appointments-container">
+        <!-- Loaded via JS -->
+      </div>
+    </section>
+
+    <!-- SYSTEM LOGS SECTION -->
+    <section class="section" id="logs-section" style="display: none;">
+      <h2 class="section-title">📋 Real-Time System Activity Logs</h2>
+      <p class="section-subtitle">Transparent persistence logs recording database events, logins, bookings, and reschedules.</p>
+
+      <div style="background: white; border-radius: var(--radius-lg); padding: 24px; border: 1px solid var(--border);">
+        <div id="logs-container" style="font-family: monospace; font-size: 0.88rem; color: #334155;">
+          <!-- Loaded via JS -->
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- BOOKING MODAL -->
+  <div class="modal-overlay" id="booking-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeBookingModal()">✕</button>
+      <h3 style="font-size: 1.3rem; margin-bottom: 6px;">📅 Book Clinic Appointment</h3>
+      <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 20px;" id="modal-doctor-sub">Doctor Details</p>
+
+      <form id="booking-form" onsubmit="submitAppointment(event)">
+        <input type="hidden" id="book-doctor-id">
+
+        <div class="form-group">
+          <label>Patient Full Name</label>
+          <input type="text" class="form-control" id="book-patient-name" required placeholder="Enter full name">
+        </div>
+
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="tel" class="form-control" id="book-patient-phone" required placeholder="+91 9876543210">
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
+          <div class="form-group">
+            <label>Appointment Date</label>
+            <input type="date" class="form-control" id="book-date" required>
+          </div>
+
+          <div class="form-group">
+            <label>Preferred Time Slot</label>
+            <select class="form-control" id="book-slot" required>
+              <option value="10:00 AM">10:00 AM</option>
+              <option value="11:30 AM">11:30 AM</option>
+              <option value="02:00 PM">02:00 PM</option>
+              <option value="04:30 PM">04:30 PM</option>
+              <option value="06:00 PM">06:00 PM</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Symptoms / Chief Complaint (Optional)</label>
+          <textarea class="form-control" id="book-symptoms" rows="2" placeholder="Describe symptoms or reason for consultation..."></textarea>
+        </div>
+
+        <!-- Twist Feature: Emergency Priority Checkbox -->
+        <div class="form-group" style="background: #fef2f2; border: 1px solid #fca5a5; padding: 12px; border-radius: var(--radius-md);">
+          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; color: #991b1b;">
+            <input type="checkbox" id="book-emergency" style="width: 18px; height: 18px; accent-color: var(--danger);">
+            <strong>🚨 Request Emergency Priority Slot</strong>
+          </label>
+          <p style="font-size: 0.78rem; color: #7f1d1d; margin-top: 4px; margin-left: 28px;">Bypasses standard slot restrictions for urgent medical triage.</p>
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Confirm & Book Appointment</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- AUTH MODAL -->
+  <div class="modal-overlay" id="auth-modal">
+    <div class="modal-content">
+      <button class="modal-close" onclick="closeAuthModal()">✕</button>
+      
+      <div style="display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid var(--border); pb: 10px;">
+        <button class="btn btn-secondary btn-sm active" id="auth-tab-login" onclick="toggleAuthTab('login')">Login</button>
+        <button class="btn btn-secondary btn-sm" id="auth-tab-register" onclick="toggleAuthTab('register')">Register Account</button>
+      </div>
+
+      <!-- Login Form -->
+      <form id="login-form" onsubmit="submitLogin(event)">
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" class="form-control" id="login-email" value="divyansh@skit.ac.in" required>
+        </div>
+
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" class="form-control" id="login-password" value="password123" required>
+        </div>
+
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">💡 Demo Credentials: <strong>divyansh@skit.ac.in</strong> / <strong>password123</strong></p>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Sign In</button>
+      </form>
+
+      <!-- Register Form -->
+      <form id="register-form" style="display: none;" onsubmit="submitRegister(event)">
+        <div class="form-group">
+          <label>Full Name</label>
+          <input type="text" class="form-control" id="reg-name" required placeholder="Divyansh Khinchi">
+        </div>
+
+        <div class="form-group">
+          <label>Email Address</label>
+          <input type="email" class="form-control" id="reg-email" required placeholder="divyansh@skit.ac.in">
+        </div>
+
+        <div class="form-group">
+          <label>Phone Number</label>
+          <input type="tel" class="form-control" id="reg-phone" placeholder="+91 9667066366">
+        </div>
+
+        <div class="form-group">
+          <label>Password</label>
+          <input type="password" class="form-control" id="reg-password" required minlength="6">
+        </div>
+
+        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Create Account</button>
+      </form>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <p>CarePulse Platform &copy; 2026 | Built for <strong>Auriga IT Campus Placement Drive</strong></p>
+      <p style="font-size: 0.82rem; margin-top: 6px;">Developed by <strong>Divyansh Khinchi</strong> (Univ Roll: 23ESKCS073, SKIT Jaipur)</p>
+    </div>
+  </footer>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>
