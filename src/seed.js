@@ -19,7 +19,7 @@ const seedData = async () => {
 
   await queryRun(
     `INSERT OR IGNORE INTO users (name, email, password, role, phone) VALUES (?, ?, ?, ?, ?)`,
-    ['Divyansh Khinchi', 'divyansh@skit.ac.in', hashedPassword, 'patient', '+91 9667066366']
+    ['Divyansh Khinchi', 'divyanshkhinchi66@gmail.com', hashedPassword, 'patient', '+91 9667066366']
   );
 
   await queryRun(
@@ -165,7 +165,7 @@ const seedData = async () => {
   }
 
   // Insert sample appointment for demo user
-  const user = await queryGet('SELECT id FROM users WHERE email = ?', ['divyansh@skit.ac.in']);
+  const user = await queryGet('SELECT id FROM users WHERE email = ?', ['divyanshkhinchi66@gmail.com']);
   const doc = await queryGet('SELECT id FROM doctors WHERE specialty = ?', ['Cardiology']);
 
   if (user && doc) {

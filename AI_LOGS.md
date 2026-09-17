@@ -2,7 +2,7 @@
 
 **Candidate Name:** Divyansh Khinchi  
 **University Roll No:** 23ESKCS073  
-**Email:** B230538@skit.ac.in / divyansh@skit.ac.in  
+**Email:** divyanshkhinchi66@gmail.com  
 **Allotted Problem Code:** `clinic_appointments`  
 **Date:** September 17, 2026  
 
@@ -70,7 +70,7 @@
 > const queryAll = (sql, params = []) => new Promise((res, rej) => db.all(sql, params, (err, rows) => err ? rej(err) : res(rows)));
 > ```
 > 
-> And `src/seed.js` populating 8 verified doctors across Jaipur clinics, demo patient `Divyansh Khinchi` (`divyansh@skit.ac.in`), and sample appointment logs.
+> And `src/seed.js` populating 8 verified doctors across Jaipur clinics, demo patient `Divyansh Khinchi` (`divyanshkhinchi66@gmail.com`), and sample appointment logs.
 
 ---
 
