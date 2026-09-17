@@ -14,17 +14,14 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ success: false, message: 'Name, email and password are required.' });
     }
 
-    // Check if user already exists
     const existingUser = await queryGet('SELECT id FROM users WHERE email = ?', [email.toLowerCase().trim()]);
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'An account with this email already exists.' });
     }
 
-    // Hash password
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
-    const userRole = role || 'patient';
+    const userRole = (role === 'staff' || role === 'front_desk') ? 'staff' : 'patient';
     const userPhone = phone || '';
 
     const result = await queryRun(
@@ -40,13 +37,11 @@ router.post('/register', async (req, res) => {
       phone: userPhone.trim()
     };
 
-    // Sign JWT
     const token = jwt.sign(user, JWT_SECRET, { expiresIn: '7d' });
 
-    // Log registration
     await queryRun('INSERT INTO system_logs (action, details) VALUES (?, ?)', [
       'USER_REGISTER',
-      `New user registered: ${user.email} (${user.name})`
+      `Registered ${userRole}: ${user.email} (${user.name})`
     ]);
 
     res.status(201).json({
@@ -90,10 +85,9 @@ router.post('/login', async (req, res) => {
 
     const token = jwt.sign(userPayload, JWT_SECRET, { expiresIn: '7d' });
 
-    // Log login
     await queryRun('INSERT INTO system_logs (action, details) VALUES (?, ?)', [
       'USER_LOGIN',
-      `User logged in: ${user.email}`
+      `Logged in: ${user.email} (${user.role})`
     ]);
 
     res.json({
@@ -117,7 +111,7 @@ router.get('/me', authenticateToken, async (req, res) => {
     }
     res.json({ success: true, user });
   } catch (error) {
-    res.status(500).json({ success: false, message: 'Server error fetching user profile.' });
+    res.status(500).json({ success: false, message: 'Server error fetching profile.' });
   }
 });
 

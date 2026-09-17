@@ -2,101 +2,33 @@ const express = require('express');
 const router = express.Router();
 const { queryAll, queryGet } = require('../config/db');
 
-// GET /api/doctors/specialties/all
-router.get('/specialties/all', async (req, res) => {
-  try {
-    const rows = await queryAll('SELECT DISTINCT specialty FROM doctors ORDER BY specialty ASC');
-    const specialties = rows.map((r) => r.specialty);
-    res.json({ success: true, specialties });
-  } catch (error) {
-    console.error('Fetch Specialties Error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch doctor specialties.' });
-  }
-});
-
-// GET /api/doctors (Search, Filter, Sort, Pagination)
+// GET /api/doctors (List all doctors)
 router.get('/', async (req, res) => {
   try {
-    const {
-      search = '',
-      specialty = '',
-      sortBy = 'rating',
-      order = 'DESC',
-      page = 1,
-      limit = 6
-    } = req.query;
-
-    const pageNum = parseInt(page, 10) || 1;
-    const limitNum = parseInt(limit, 10) || 6;
-    const offset = (pageNum - 1) * limitNum;
-
+    const { search = '', specialization = '' } = req.query;
     let whereClause = 'WHERE 1=1';
     let params = [];
 
     if (search.trim() !== '') {
-      whereClause += ' AND (name LIKE ? OR specialty LIKE ? OR clinic_address LIKE ? OR city LIKE ?)';
-      const searchTerm = `%${search.trim()}%`;
-      params.push(searchTerm, searchTerm, searchTerm, searchTerm);
+      whereClause += ' AND (name LIKE ? OR specialization LIKE ? OR city LIKE ?)';
+      const term = `%${search.trim()}%`;
+      params.push(term, term, term);
     }
 
-    if (specialty.trim() !== '' && specialty !== 'All') {
-      whereClause += ' AND specialty = ?';
-      params.push(specialty.trim());
+    if (specialization.trim() !== '' && specialization !== 'All') {
+      whereClause += ' AND specialization = ?';
+      params.push(specialization.trim());
     }
 
-    // Validate sort parameters to prevent SQL injection
-    const allowedSortFields = ['rating', 'fee', 'experience', 'name'];
-    const validSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'rating';
-    const validOrder = order.toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
-
-    // Count total records for pagination info
-    const countSql = `SELECT COUNT(*) as total FROM doctors ${whereClause}`;
-    const countResult = await queryGet(countSql, params);
-    const totalRecords = countResult ? countResult.total : 0;
-    const totalPages = Math.ceil(totalRecords / limitNum);
-
-    // Fetch paginated & sorted records
-    const dataSql = `
-      SELECT * FROM doctors
-      ${whereClause}
-      ORDER BY ${validSortBy} ${validOrder}
-      LIMIT ? OFFSET ?
-    `;
-
-    const dataParams = [...params, limitNum, offset];
-    const doctors = await queryAll(dataSql, dataParams);
-
-    // Format available_days JSON string to array
-    const formattedDoctors = doctors.map((doc) => ({
-      ...doc,
-      available_days: JSON.parse(doc.available_days || '[]')
-    }));
-
-    res.json({
-      success: true,
-      data: formattedDoctors,
-      pagination: {
-        totalRecords,
-        totalPages,
-        currentPage: pageNum,
-        limit: limitNum,
-        hasNextPage: pageNum < totalPages,
-        hasPrevPage: pageNum > 1
-      },
-      filters: {
-        search,
-        specialty,
-        sortBy: validSortBy,
-        order: validOrder
-      }
-    });
+    const doctors = await queryAll(`SELECT * FROM doctors ${whereClause} ORDER BY rating DESC`, params);
+    res.json({ success: true, count: doctors.length, data: doctors });
   } catch (error) {
     console.error('Fetch Doctors Error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch doctors list.' });
+    res.status(500).json({ success: false, message: 'Failed to fetch doctors.' });
   }
 });
 
-// GET /api/doctors/:id
+// GET /api/doctors/:id (Doctor Details)
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -106,11 +38,59 @@ router.get('/:id', async (req, res) => {
       return res.status(404).json({ success: false, message: 'Doctor not found.' });
     }
 
-    doctor.available_days = JSON.parse(doctor.available_days || '[]');
     res.json({ success: true, doctor });
   } catch (error) {
-    console.error('Fetch Doctor Details Error:', error);
-    res.status(500).json({ success: false, message: 'Failed to fetch doctor details.' });
+    console.error('Fetch Doctor Error:', error);
+    res.status(500).json({ success: false, message: 'Server error fetching doctor.' });
+  }
+});
+
+// GET /api/doctors/:id/appointments?date=YYYY-MM-DD (DOCTOR'S DAY VIEW ORDERED BY START_TIME)
+router.get('/:id/appointments', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { date } = req.query;
+
+    if (!date) {
+      return res.status(400).json({ success: false, message: 'Query parameter date (YYYY-MM-DD) is required.' });
+    }
+
+    const doctor = await queryGet('SELECT id, name, specialization, fee FROM doctors WHERE id = ?', [id]);
+    if (!doctor) {
+      return res.status(404).json({ success: false, message: 'Doctor not found.' });
+    }
+
+    // Fetch all active/confirmed & cancelled appointments for this doctor on date, ordered by start_time
+    const sql = `
+      SELECT 
+        a.id, 
+        a.doctor_id,
+        a.patient_id,
+        a.patient_name,
+        a.patient_phone,
+        a.appointment_date,
+        a.start_time,
+        a.end_time,
+        a.symptoms,
+        a.status,
+        a.cancellation_fee
+      FROM appointments a
+      WHERE a.doctor_id = ? AND a.appointment_date = ?
+      ORDER BY a.start_time ASC
+    `;
+
+    const appointments = await queryAll(sql, [id, date]);
+
+    res.json({
+      success: true,
+      doctor,
+      date,
+      count: appointments.length,
+      appointments
+    });
+  } catch (error) {
+    console.error('Doctor Day Schedule Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch doctor day schedule.' });
   }
 });
 

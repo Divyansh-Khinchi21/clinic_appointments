@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>CarePulse | Clinic Front Desk & Appointment Platform</title>
-  <meta name="description" content="CarePulse is a conflict-free clinic appointment and front-desk schedule management platform built for Auriga IT placement drive.">
+  <title>Clinic Appointment Management System | CarePulse</title>
+  <meta name="description" content="Conflict-free clinic appointment booking system with backend interval overlap validation, fair late-cancellation handling, doctor day views, and patient search.">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -14,15 +14,14 @@
     <div class="container nav-bar">
       <div class="logo">
         <div class="logo-icon">🏥</div>
-        <span>CarePulse</span>
+        <span>CarePulse Clinic</span>
       </div>
 
       <ul class="nav-links">
-        <li><a href="#hero" class="nav-link active" onclick="switchTab('landing')">Product Overview</a></li>
-        <li><a href="#doctors" class="nav-link" onclick="switchTab('doctors')">Find Doctors</a></li>
-        <li><a href="#frontdesk" class="nav-link" onclick="switchTab('frontdesk')">🖥️ Front Desk Schedule</a></li>
-        <li><a href="#appointments" class="nav-link" onclick="switchTab('appointments')">My Appointments</a></li>
-        <li><a href="#logs" class="nav-link" onclick="switchTab('logs')">System Logs</a></li>
+        <li><a href="#hero" class="nav-link active" onclick="switchTab('landing')">Landing Page</a></li>
+        <li><a href="#book" class="nav-link" onclick="switchTab('book')">📅 Book Appointment</a></li>
+        <li><a href="#patient" class="nav-link" onclick="switchTab('patient')">👤 Patient Dashboard</a></li>
+        <li><a href="#staff" class="nav-link" onclick="switchTab('staff')">🖥️ Staff Console</a></li>
       </ul>
 
       <div class="auth-buttons" id="auth-buttons">
@@ -36,13 +35,13 @@
   <section class="hero-section" id="hero">
     <div class="container hero-content">
       <div>
-        <div class="hero-badge">⚡ Auriga IT Placement Drive 2026 — Builder Round</div>
-        <h1 class="hero-title">Conflict-Free Clinic Booking <span>& Fair Cancellations</span></h1>
-        <p class="hero-desc">CarePulse solves front-desk frustrations: zero doctor double-bookings, fair late cancellation rules, instant patient lookups, and clear day schedule grids.</p>
+        <div class="hero-badge">⚡ Auriga IT Placement Drive — Builder Round</div>
+        <h1 class="hero-title">Clinic Appointment <span>Management System</span></h1>
+        <p class="hero-desc">End-to-end conflict-free appointment booking with backend interval overlap validation, fair late-cancellation handling, doctor schedule management, and patient search.</p>
         
         <div style="display: flex; gap: 14px; flex-wrap: wrap;">
-          <button class="btn btn-primary" onclick="switchTab('doctors')">🔍 Find & Book Doctors</button>
-          <button class="btn btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);" onclick="switchTab('frontdesk')">🖥️ View Front Desk Day Grid</button>
+          <button class="btn btn-primary" onclick="switchTab('book')">📅 Book Appointment</button>
+          <button class="btn btn-secondary" style="background: rgba(255,255,255,0.1); color: white; border-color: rgba(255,255,255,0.2);" onclick="switchTab('staff')">🖥️ Staff / Front Desk View</button>
         </div>
       </div>
 
@@ -50,20 +49,20 @@
         <h3 style="color: white; margin-bottom: 20px; text-align: center; font-size: 1.3rem;">📊 Live Platform Summary</h3>
         <div class="stats-grid">
           <div class="stat-box">
-            <div class="stat-number" id="stat-doctors">8+</div>
+            <div class="stat-number" id="stat-doctors">4+</div>
             <div class="stat-label">Verified Doctors</div>
           </div>
           <div class="stat-box">
-            <div class="stat-number" id="stat-specialties">7</div>
-            <div class="stat-label">Specialties</div>
+            <div class="stat-number" id="stat-appts">0</div>
+            <div class="stat-label">Active Slots</div>
           </div>
           <div class="stat-box">
-            <div class="stat-number" id="stat-appts">12</div>
-            <div class="stat-label">Conflict-Free Slots</div>
+            <div class="stat-number" id="stat-cancellations">0</div>
+            <div class="stat-label">Cancellations</div>
           </div>
           <div class="stat-box">
-            <div class="stat-number" id="stat-emergency">3</div>
-            <div class="stat-label">Emergency Routing</div>
+            <div class="stat-number" id="stat-overlap">0</div>
+            <div class="stat-label">Overlaps Blocked</div>
           </div>
         </div>
       </div>
@@ -72,240 +71,199 @@
 
   <main class="container">
 
-    <!-- MANDATORY LANDING PAGE BRIEF SECTION -->
+    <!-- 1. MANDATORY LANDING PAGE BRIEF -->
     <section class="section" id="product-brief">
-      <h2 class="section-title">💡 One-Page Product Landing Brief</h2>
-      <p class="section-subtitle">Spec Breakdown: Eliminating front-desk double bookings & enforcing fair cancellation policies.</p>
+      <h2 class="section-title">💡 Product Overview & Architecture</h2>
+      <p class="section-subtitle">Conflict-free clinic scheduling, fair late-cancellation handling, doctor day views, and patient search.</p>
 
       <div class="brief-grid">
-        <!-- 1. What it is -->
         <div class="brief-card">
           <div class="brief-icon">🎯</div>
           <h3>1. What It Is</h3>
-          <p>CarePulse is an end-to-end clinic front-desk management portal. It connects patients and clinic staff to a central conflict-free booking system, preventing double-booked doctors, enabling instant patient lookups, and managing cancellation fees fairly.</p>
+          <p>CarePulse is a full-stack clinic management system built with Node.js, Express, SQLite, and REST APIs. It ensures doctors are never double-booked using strict backend time-interval overlap algorithms.</p>
         </div>
 
-        <!-- 2. Key Features -->
         <div class="brief-card">
           <div class="brief-icon">⚡</div>
           <h3>2. Key Features</h3>
           <ul class="feature-list">
-            <li><strong>Conflict-Free Booking:</strong> Strictly blocks overlapping slots for the same doctor.</li>
-            <li><strong>Fair Cancellation Policy:</strong> Free cancellation in good time (2+ hours in advance); small ₹150 fee for late cancels.</li>
-            <li><strong>Doctor's Day Schedule Grid:</strong> Full daily slot visibility for front-desk receptionists.</li>
-            <li><strong>Instant Patient Lookup:</strong> Search any appointment by patient name or phone.</li>
-            <li><strong>Emergency Priority Override:</strong> Rapid slot reservation for urgent triage.</li>
+            <li><strong>Interval Overlap Validation:</strong> `(new_start < existing_end AND new_end > existing_start)` check blocks overlapping slots.</li>
+            <li><strong>Fair Late-Cancellation Rule:</strong> >2 hours in advance = <strong>₹0 fee</strong>; <=2 hours in advance = <strong>₹100 fee</strong>.</li>
+            <li><strong>Doctor's Day View:</strong> Front desk schedule view ordered by start time.</li>
+            <li><strong>Patient Search:</strong> Fast lookup by patient name or phone.</li>
+            <li><strong>Pagination & Sorting:</strong> `?page=1&limit=10` and `?sortBy=start_time&order=asc`.</li>
           </ul>
         </div>
 
-        <!-- 3. Target Audience -->
         <div class="brief-card">
           <div class="brief-icon">👥</div>
           <h3>3. Target Audience</h3>
           <ul class="feature-list">
-            <li><strong>Clinic Front-Desk Staff:</strong> Needing an automated, error-free schedule register.</li>
-            <li><strong>Patients & Families:</strong> Seeking transparent booking and fair cancellation policies.</li>
-            <li><strong>Doctors & Specialists:</strong> Wanting clear day timelines without slot overlaps.</li>
+            <li><strong>Front Desk / Staff:</strong> Seeking error-free schedule registers and quick patient lookups.</li>
+            <li><strong>Patients:</strong> Wanting clear appointment start/end times and transparent cancellation rules.</li>
+            <li><strong>Doctors:</strong> Requiring conflict-free daily schedule timelines.</li>
           </ul>
         </div>
 
-        <!-- 4. How It Helps -->
         <div class="brief-card">
           <div class="brief-icon">📈</div>
           <h3>4. How It Helps</h3>
-          <p>Eliminates double-booking errors by <strong>100%</strong>, cuts front-desk phone friction, ensures doctors' day schedules run smoothly, and deters last-minute no-shows with transparent late cancellation fees.</p>
+          <p>Eliminates double-booking errors by <strong>100%</strong>, reduces phone call congestion, ensures fair cancellation terms for both patients and doctors, and provides real-time audit logging.</p>
         </div>
       </div>
 
-      <!-- 5. Three Features We Would Build Next -->
       <div style="margin-top: 32px; background: white; border-radius: var(--radius-lg); padding: 32px; border: 1px solid var(--border);">
-        <h3 style="font-size: 1.3rem; margin-bottom: 16px; color: var(--primary-dark);">🚀 3 Features We Would Build Next (Product Roadmap)</h3>
+        <h3 style="font-size: 1.3rem; margin-bottom: 16px; color: var(--primary-dark);">🚀 3 Features We Would Build Next</h3>
         
         <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
           <div style="background: var(--bg-subtle); padding: 20px; border-radius: var(--radius-md); border-left: 4px solid var(--primary);">
-            <h4 style="margin-bottom: 6px;">1. Automated WhatsApp & SMS Cancellation Alerts</h4>
-            <p style="font-size: 0.9rem; color: var(--text-secondary);">Direct WhatsApp API notifications reminding patients 3 hours before their slot so they can cancel for FREE if needed, avoiding late fees.</p>
+            <h4>1. WhatsApp & SMS Cancellation Reminders</h4>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">Automated SMS reminders 3 hours before start time so patients can cancel for FREE if needed, avoiding the ₹100 late fee.</p>
           </div>
 
           <div style="background: var(--bg-subtle); padding: 20px; border-radius: var(--radius-md); border-left: 4px solid var(--accent);">
-            <h4 style="margin-bottom: 6px;">2. AI Front Desk Voice & Chat Assistant</h4>
-            <p style="font-size: 0.9rem; color: var(--text-secondary);">An AI voice bot capable of answering phone calls, checking doctor availability in real-time, and booking conflict-free slots automatically.</p>
+            <h4>2. AI Symptom Triage & Specialist Referral</h4>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">Natural language pre-assessment module recommending appropriate doctor specialization based on symptoms.</p>
           </div>
 
           <div style="background: var(--bg-subtle); padding: 20px; border-radius: var(--radius-md); border-left: 4px solid var(--success);">
-            <h4 style="margin-bottom: 6px;">3. Instant Tele-Consultation Room Generator</h4>
-            <p style="font-size: 0.9rem; color: var(--text-secondary);">Encrypted WebRTC video calls automatically spawned for remote patients unable to visit the physical clinic address.</p>
+            <h4>3. Tele-Consultation WebRTC Rooms</h4>
+            <p style="font-size: 0.9rem; color: var(--text-secondary); margin-top: 4px;">In-browser video call links generated automatically for remote patient consultations.</p>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- FRONT DESK DAY GRID & PATIENT LOOKUP SECTION -->
-    <section class="section" id="frontdesk-section" style="display: none;">
-      <h2 class="section-title">🖥️ Front Desk Management Console</h2>
-      <p class="section-subtitle">View any doctor's daily schedule grid or look up patient appointments by name.</p>
+    <!-- 2. BOOK APPOINTMENT SECTION -->
+    <section class="section" id="book-section" style="display: none;">
+      <h2 class="section-title">📅 Book Appointment</h2>
+      <p class="section-subtitle">Select doctor, date, start time, and end time. Backend strictly validates interval overlaps.</p>
 
-      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px;">
-        <!-- Doctor Day Grid Selector -->
-        <div class="filter-card">
-          <h3 style="font-size: 1.1rem; margin-bottom: 14px;">📅 View Doctor's Day Schedule</h3>
-          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
-            <select class="select-control" id="fd-doctor-select" style="flex: 1;" onchange="loadDoctorDayGrid()">
-              <!-- Populated via JS -->
+      <div style="max-width: 600px; margin: 0 auto; background: white; padding: 32px; border-radius: var(--radius-lg); border: 1px solid var(--border); box-shadow: var(--shadow-sm);">
+        <form id="main-book-form" onsubmit="submitMainBooking(event)">
+          <div class="form-group">
+            <label>Select Doctor</label>
+            <select class="form-control" id="book-doctor-select" required>
+              <!-- Loaded via JS -->
             </select>
-            <input type="date" class="form-control" id="fd-date-select" style="width: auto;" onchange="loadDoctorDayGrid()">
-          </div>
-        </div>
-
-        <!-- Patient Lookup Search Box -->
-        <div class="filter-card">
-          <h3 style="font-size: 1.1rem; margin-bottom: 14px;">🔍 Find Patient Appointment by Name</h3>
-          <div class="search-input-group">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="fd-patient-search" placeholder="Type patient name or phone..." oninput="handleFrontDeskPatientSearch()">
-          </div>
-        </div>
-      </div>
-
-      <!-- Schedule Grid Output -->
-      <div id="fd-schedule-container" style="background: white; border-radius: var(--radius-lg); padding: 28px; border: 1px solid var(--border); margin-bottom: 30px;">
-        <!-- Loaded via JS -->
-      </div>
-
-      <!-- Patient Search Results Container -->
-      <div id="fd-search-results-container" style="display: none; background: white; border-radius: var(--radius-lg); padding: 28px; border: 1px solid var(--border);">
-        <h3 style="font-size: 1.1rem; margin-bottom: 16px;">Search Results</h3>
-        <div class="appointments-grid" id="fd-search-grid">
-          <!-- Loaded via JS -->
-        </div>
-      </div>
-    </section>
-
-    <!-- DOCTOR DIRECTORY SECTION -->
-    <section class="section" id="doctors-section">
-      <h2 class="section-title">👩‍⚕️ Find & Book Verified Doctors</h2>
-      <p class="section-subtitle">Search doctors, check available days, and book conflict-free consultation slots.</p>
-
-      <!-- Search & Filter Card -->
-      <div class="filter-card">
-        <div class="search-row">
-          <div class="search-input-group">
-            <span class="search-icon">🔍</span>
-            <input type="text" id="search-input" placeholder="Search by doctor name, specialty, or clinic..." oninput="handleSearch()">
           </div>
 
-          <select class="select-control" id="sort-select" onchange="handleSortChange()">
-            <option value="rating-DESC">Rating: High to Low</option>
-            <option value="fee-ASC">Fee: Low to High</option>
-            <option value="fee-DESC">Fee: High to Low</option>
-            <option value="experience-DESC">Experience: High to Low</option>
-            <option value="name-ASC">Name: A to Z</option>
-          </select>
-        </div>
+          <div class="form-group">
+            <label>Patient Full Name</label>
+            <input type="text" class="form-control" id="book-patient-name" required placeholder="e.g. Divyansh Khinchi">
+          </div>
 
-        <!-- Specialty Filter Pills -->
-        <div class="specialty-pills" id="specialty-pills">
-          <div class="pill active" onclick="filterSpecialty('All')">All Specialties</div>
-        </div>
-      </div>
+          <div class="form-group">
+            <label>Patient Phone</label>
+            <input type="tel" class="form-control" id="book-patient-phone" placeholder="+91 9667066366">
+          </div>
 
-      <!-- Doctors Cards Grid -->
-      <div class="doctors-grid" id="doctors-container"></div>
-
-      <!-- Pagination Controls -->
-      <div class="pagination-bar">
-        <div class="page-info" id="page-info">Showing page 1 of 1</div>
-        <div class="page-buttons">
-          <button class="btn btn-secondary btn-sm" id="btn-prev" onclick="changePage(-1)" disabled>Previous</button>
-          <button class="btn btn-secondary btn-sm" id="btn-next" onclick="changePage(1)" disabled>Next</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- MY APPOINTMENTS SECTION -->
-    <section class="section" id="appointments-section" style="display: none;">
-      <h2 class="section-title">📅 My Booked Appointments</h2>
-      <p class="section-subtitle">View active bookings, check cancellation terms (FREE vs Late Fee), and manage your slots.</p>
-
-      <!-- Cancellation Policy Notice Banner -->
-      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 24px; font-size: 0.9rem; color: #166534;">
-        💡 <strong>Fair Cancellation Rule:</strong> Cancellations made <strong>2+ hours before</strong> your appointment are <strong>FREE (₹0 fee)</strong>. Late cancellations (within 2 hours) incur a small <strong>₹150 fee</strong> to protect doctor schedules.
-      </div>
-
-      <div class="appointments-grid" id="appointments-container"></div>
-    </section>
-
-    <!-- SYSTEM LOGS SECTION -->
-    <section class="section" id="logs-section" style="display: none;">
-      <h2 class="section-title">📋 Real-Time System Activity Logs</h2>
-      <p class="section-subtitle">Transparent audit logs recording conflict-free bookings, double-booking blocks, and cancellation fees.</p>
-
-      <div style="background: white; border-radius: var(--radius-lg); padding: 24px; border: 1px solid var(--border);">
-        <div id="logs-container" style="font-family: monospace; font-size: 0.88rem; color: #334155;"></div>
-      </div>
-    </section>
-
-  </main>
-
-  <!-- BOOKING MODAL -->
-  <div class="modal-overlay" id="booking-modal">
-    <div class="modal-content">
-      <button class="modal-close" onclick="closeBookingModal()">✕</button>
-      <h3 style="font-size: 1.3rem; margin-bottom: 6px;">📅 Book Conflict-Free Appointment</h3>
-      <p style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 20px;" id="modal-doctor-sub">Doctor Details</p>
-
-      <form id="booking-form" onsubmit="submitAppointment(event)">
-        <input type="hidden" id="book-doctor-id">
-
-        <div class="form-group">
-          <label>Patient Full Name</label>
-          <input type="text" class="form-control" id="book-patient-name" required placeholder="Enter patient name">
-        </div>
-
-        <div class="form-group">
-          <label>Phone Number</label>
-          <input type="tel" class="form-control" id="book-patient-phone" required placeholder="+91 9667066366">
-        </div>
-
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px;">
           <div class="form-group">
             <label>Appointment Date</label>
             <input type="date" class="form-control" id="book-date" required>
           </div>
 
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div class="form-group">
+              <label>Start Time (HH:MM 24-hr)</label>
+              <input type="time" class="form-control" id="book-start-time" value="10:00" required>
+            </div>
+
+            <div class="form-group">
+              <label>End Time (HH:MM 24-hr)</label>
+              <input type="time" class="form-control" id="book-end-time" value="10:30" required>
+            </div>
+          </div>
+
           <div class="form-group">
-            <label>Time Slot</label>
-            <select class="form-control" id="book-slot" required>
-              <option value="09:00 AM">09:00 AM</option>
-              <option value="10:00 AM">10:00 AM</option>
-              <option value="11:00 AM">11:00 AM</option>
-              <option value="12:00 PM">12:00 PM</option>
-              <option value="02:00 PM">02:00 PM</option>
-              <option value="03:00 PM">03:00 PM</option>
-              <option value="04:00 PM">04:00 PM</option>
-              <option value="05:00 PM">05:00 PM</option>
-              <option value="06:00 PM">06:00 PM</option>
+            <label>Symptoms / Notes (Optional)</label>
+            <textarea class="form-control" id="book-symptoms" rows="2" placeholder="Reason for visit..."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Confirm & Book Slot</button>
+        </form>
+      </div>
+    </section>
+
+    <!-- 3. PATIENT DASHBOARD / MY APPOINTMENTS SECTION -->
+    <section class="section" id="patient-section" style="display: none;">
+      <h2 class="section-title">👤 Patient Dashboard — My Appointments</h2>
+      <p class="section-subtitle">View active bookings, check cancellation terms (>2h = ₹0 fee, <=2h = ₹100 fee), and manage appointments.</p>
+
+      <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: var(--radius-md); padding: 16px 20px; margin-bottom: 24px; font-size: 0.9rem; color: #166534;">
+        💡 <strong>Late Cancellation Rule:</strong> Cancellations made <strong>more than 2 hours before</strong> appointment start time are <strong>FREE (₹0 fee)</strong>. Cancellations <strong>within 2 hours</strong> incur a <strong>₹100 fee</strong>.
+      </div>
+
+      <div class="appointments-grid" id="patient-appts-container"></div>
+    </section>
+
+    <!-- 4. STAFF / FRONT DESK DASHBOARD SECTION -->
+    <section class="section" id="staff-section" style="display: none;">
+      <h2 class="section-title">🖥️ Staff & Front Desk Dashboard</h2>
+      <p class="section-subtitle">Doctor Day View schedule grid ordered by start time, patient search lookup, and clinic management.</p>
+
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 30px;">
+        <!-- Doctor Day View Controls -->
+        <div class="filter-card">
+          <h3 style="font-size: 1.1rem; margin-bottom: 14px;">📅 Doctor's Day View</h3>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <select class="select-control" id="staff-doctor-select" style="flex: 1;" onchange="loadDoctorDayView()">
+              <!-- Loaded via JS -->
+            </select>
+            <input type="date" class="form-control" id="staff-date-select" style="width: auto;" onchange="loadDoctorDayView()">
+          </div>
+        </div>
+
+        <!-- Patient Search Box -->
+        <div class="filter-card">
+          <h3 style="font-size: 1.1rem; margin-bottom: 14px;">🔍 Patient Search Lookup</h3>
+          <div class="search-input-group">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="staff-search-input" placeholder="Type patient name..." oninput="handlePatientSearch()">
+          </div>
+        </div>
+      </div>
+
+      <!-- Doctor Day Schedule Output -->
+      <div id="staff-day-container" style="background: white; border-radius: var(--radius-lg); padding: 28px; border: 1px solid var(--border); margin-bottom: 30px;">
+        <!-- Loaded via JS -->
+      </div>
+
+      <!-- All Appointments Table with Pagination & Sorting -->
+      <div style="background: white; border-radius: var(--radius-lg); padding: 28px; border: 1px solid var(--border);">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 12px;">
+          <h3>📋 All Clinic Appointments (Paginated & Sorted)</h3>
+          
+          <div style="display: flex; gap: 12px;">
+            <select class="select-control" id="sort-by-select" onchange="handleSortChange()">
+              <option value="start_time-asc">Sort: Start Time (Asc)</option>
+              <option value="appointment_date-asc">Sort: Date (Asc)</option>
+              <option value="patient_name-asc">Sort: Patient Name (A-Z)</option>
+              <option value="doctor_name-asc">Sort: Doctor Name (A-Z)</option>
+            </select>
+
+            <select class="select-control" id="page-limit-select" onchange="handleLimitChange()">
+              <option value="5">Limit: 5</option>
+              <option value="10" selected>Limit: 10</option>
+              <option value="20">Limit: 20</option>
             </select>
           </div>
         </div>
 
-        <div class="form-group">
-          <label>Symptoms / Chief Complaint (Optional)</label>
-          <textarea class="form-control" id="book-symptoms" rows="2" placeholder="Describe symptoms or reason for visit..."></textarea>
-        </div>
+        <div class="appointments-grid" id="staff-all-appts"></div>
 
-        <div class="form-group" style="background: #fef2f2; border: 1px solid #fca5a5; padding: 12px; border-radius: var(--radius-md);">
-          <label style="display: flex; align-items: center; gap: 10px; cursor: pointer; margin: 0; color: #991b1b;">
-            <input type="checkbox" id="book-emergency" style="width: 18px; height: 18px; accent-color: var(--danger);">
-            <strong>🚨 Request Emergency Priority Slot</strong>
-          </label>
-          <p style="font-size: 0.78rem; color: #7f1d1d; margin-top: 4px; margin-left: 28px;">Bypasses standard slot restrictions for urgent triage.</p>
+        <!-- Pagination Bar -->
+        <div class="pagination-bar">
+          <div class="page-info" id="page-info">Showing Page 1 of 1</div>
+          <div class="page-buttons">
+            <button class="btn btn-secondary btn-sm" id="btn-prev" onclick="changePage(-1)" disabled>Previous</button>
+            <button class="btn btn-secondary btn-sm" id="btn-next" onclick="changePage(1)" disabled>Next</button>
+          </div>
         </div>
+      </div>
+    </section>
 
-        <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center; margin-top: 10px;">Confirm & Book Appointment</button>
-      </form>
-    </div>
-  </div>
+  </main>
 
   <!-- AUTH MODAL -->
   <div class="modal-overlay" id="auth-modal">
@@ -328,7 +286,11 @@
           <input type="password" class="form-control" id="login-password" value="password123" required>
         </div>
 
-        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">💡 Demo Credentials: <strong>b230538@skit.ac.in</strong> or <strong>divyanshkhinchi66@gmail.com</strong> / <strong>password123</strong></p>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 16px;">
+          💡 Demo Credentials:<br>
+          Patient: <strong>divyanshkhinchi66@gmail.com</strong> / <strong>password123</strong><br>
+          Staff: <strong>staff@carepulse.com</strong> / <strong>password123</strong>
+        </p>
 
         <button type="submit" class="btn btn-primary" style="width: 100%; justify-content: center;">Sign In</button>
       </form>
@@ -336,7 +298,7 @@
       <form id="register-form" style="display: none;" onsubmit="submitRegister(event)">
         <div class="form-group">
           <label>Full Name</label>
-          <input type="text" class="form-control" id="reg-name" required placeholder="Divyansh Khinchi">
+          <input type="text" class="form-control" id="reg-name" required placeholder="e.g. Divyansh Khinchi">
         </div>
 
         <div class="form-group">
@@ -345,8 +307,11 @@
         </div>
 
         <div class="form-group">
-          <label>Phone Number</label>
-          <input type="tel" class="form-control" id="reg-phone" placeholder="+91 9667066366">
+          <label>Account Role</label>
+          <select class="form-control" id="reg-role">
+            <option value="patient">Patient</option>
+            <option value="staff">Staff / Front Desk</option>
+          </select>
         </div>
 
         <div class="form-group">
@@ -363,8 +328,8 @@
 
   <footer>
     <div class="container">
-      <p>CarePulse Platform &copy; 2026 | Built for <strong>Auriga IT Campus Placement Drive</strong></p>
-      <p style="font-size: 0.82rem; margin-top: 6px;">Developed by <strong>Divyansh Khinchi</strong> (Univ Roll: 23ESKCS073, SKIT Jaipur)</p>
+      <p>CarePulse Clinic Management System &copy; 2026 | Built for <strong>Auriga IT Campus Placement Drive</strong></p>
+      <p style="font-size: 0.82rem; margin-top: 6px;">Candidate: <strong>Divyansh Khinchi</strong> (Univ Roll: 23ESKCS073, SKIT Jaipur)</p>
     </div>
   </footer>
 

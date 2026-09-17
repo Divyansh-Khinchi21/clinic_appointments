@@ -5,15 +5,12 @@ let state = {
   user: JSON.parse(localStorage.getItem('carepulse_user') || 'null'),
   currentPage: 1,
   totalPages: 1,
-  searchQuery: '',
-  selectedSpecialty: 'All',
-  sortBy: 'rating',
-  sortOrder: 'DESC',
-  currentDoctorForBooking: null,
-  doctorsListAll: []
+  limit: 10,
+  sortBy: 'start_time',
+  sortOrder: 'asc',
+  doctors: []
 };
 
-// DOM Load Initialization
 document.addEventListener('DOMContentLoaded', () => {
   initApp();
 });
@@ -21,36 +18,33 @@ document.addEventListener('DOMContentLoaded', () => {
 function initApp() {
   updateAuthUI();
   fetchStats();
-  fetchSpecialties();
-  fetchDoctors();
-  fetchAllDoctorsForFrontDesk();
+  fetchDoctorsList();
 
-  // Set minimum date for booking & front desk date picker to today
-  const dateInput = document.getElementById('book-date');
-  const fdDateInput = document.getElementById('fd-date-select');
   const today = new Date().toISOString().split('T')[0];
-  
+  const dateInput = document.getElementById('book-date');
+  const staffDateInput = document.getElementById('staff-date-select');
+
   if (dateInput) {
     dateInput.min = today;
     dateInput.value = today;
   }
-  if (fdDateInput) {
-    fdDateInput.min = today;
-    fdDateInput.value = today;
+  if (staffDateInput) {
+    staffDateInput.min = today;
+    staffDateInput.value = today;
   }
 }
 
-// Update Header User UI
 function updateAuthUI() {
   const container = document.getElementById('auth-buttons');
   if (!container) return;
 
   if (state.token && state.user) {
     const initial = state.user.name ? state.user.name.charAt(0).toUpperCase() : 'U';
+    const roleBadge = state.user.role === 'staff' ? ' (Staff)' : '';
     container.innerHTML = `
       <div class="user-pill">
         <div class="user-avatar-sm">${initial}</div>
-        <div style="font-size: 0.88rem; font-weight: 600;">${escapeHtml(state.user.name)}</div>
+        <div style="font-size: 0.88rem; font-weight: 600;">${escapeHtml(state.user.name)}${roleBadge}</div>
       </div>
       <button class="btn btn-secondary btn-sm" onclick="handleLogout()">Logout</button>
     `;
@@ -62,434 +56,254 @@ function updateAuthUI() {
   }
 }
 
-// Tab Switching
 function switchTab(tab) {
   const briefSec = document.getElementById('product-brief');
-  const docSec = document.getElementById('doctors-section');
-  const fdSec = document.getElementById('frontdesk-section');
-  const apptSec = document.getElementById('appointments-section');
-  const logSec = document.getElementById('logs-section');
+  const bookSec = document.getElementById('book-section');
+  const patientSec = document.getElementById('patient-section');
+  const staffSec = document.getElementById('staff-section');
 
   document.querySelectorAll('.nav-link').forEach((link) => link.classList.remove('active'));
 
   briefSec.style.display = 'none';
-  docSec.style.display = 'none';
-  fdSec.style.display = 'none';
-  apptSec.style.display = 'none';
-  logSec.style.display = 'none';
+  bookSec.style.display = 'none';
+  patientSec.style.display = 'none';
+  staffSec.style.display = 'none';
 
   if (tab === 'landing') {
     briefSec.style.display = 'block';
-    docSec.style.display = 'block';
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  } else if (tab === 'doctors') {
-    docSec.style.display = 'block';
-    docSec.scrollIntoView({ behavior: 'smooth' });
-  } else if (tab === 'frontdesk') {
-    fdSec.style.display = 'block';
-    loadDoctorDayGrid();
-  } else if (tab === 'appointments') {
+  } else if (tab === 'book') {
+    bookSec.style.display = 'block';
+    bookSec.scrollIntoView({ behavior: 'smooth' });
+  } else if (tab === 'patient') {
     if (!state.token) {
-      showToast('Please login to view your appointments.', 'error');
+      showToast('Please login to view your dashboard.', 'error');
       openAuthModal('login');
       return;
     }
-    apptSec.style.display = 'block';
-    fetchMyAppointments();
-  } else if (tab === 'logs') {
-    logSec.style.display = 'block';
-    fetchLogs();
+    patientSec.style.display = 'block';
+    fetchPatientAppointments();
+  } else if (tab === 'staff') {
+    staffSec.style.display = 'block';
+    loadDoctorDayView();
+    fetchStaffAllAppointments();
   }
 }
 
-// Fetch Summary Stats
+// Fetch Platform Stats
 async function fetchStats() {
   try {
     const res = await fetch('/api/stats/summary');
     const data = await res.json();
     if (data.success) {
       document.getElementById('stat-doctors').innerText = data.stats.totalDoctors + '+';
-      document.getElementById('stat-specialties').innerText = data.stats.totalSpecialties;
       document.getElementById('stat-appts').innerText = data.stats.totalAppointments;
-      document.getElementById('stat-emergency').innerText = data.stats.emergencyAppointments;
+      document.getElementById('stat-cancellations').innerText = data.stats.emergencyAppointments || 0;
+      document.getElementById('stat-overlap').innerText = '100%';
     }
   } catch (err) {
     console.error('Error fetching stats:', err);
   }
 }
 
-// Fetch Specialties
-async function fetchSpecialties() {
+// Fetch Doctors for Dropdowns
+async function fetchDoctorsList() {
   try {
-    const res = await fetch('/api/doctors/specialties/all');
+    const res = await fetch('/api/doctors');
     const data = await res.json();
     if (data.success) {
-      const container = document.getElementById('specialty-pills');
-      let html = `<div class="pill ${state.selectedSpecialty === 'All' ? 'active' : ''}" onclick="filterSpecialty('All')">All Specialties</div>`;
-      data.specialties.forEach((spec) => {
-        html += `<div class="pill ${state.selectedSpecialty === spec ? 'active' : ''}" onclick="filterSpecialty('${escapeHtml(spec)}')">${escapeHtml(spec)}</div>`;
-      });
-      container.innerHTML = html;
-    }
-  } catch (err) {
-    console.error('Error fetching specialties:', err);
-  }
-}
+      state.doctors = data.data;
+      const bookSelect = document.getElementById('book-doctor-select');
+      const staffSelect = document.getElementById('staff-doctor-select');
 
-// Fetch All Doctors for Front Desk Dropdown
-async function fetchAllDoctorsForFrontDesk() {
-  try {
-    const res = await fetch('/api/doctors?limit=50');
-    const data = await res.json();
-    if (data.success) {
-      state.doctorsListAll = data.data;
-      const select = document.getElementById('fd-doctor-select');
-      if (select) {
-        select.innerHTML = data.data.map((d) => `<option value="${d.id}">${escapeHtml(d.name)} (${escapeHtml(d.specialty)})</option>`).join('');
-      }
-    }
-  } catch (err) {
-    console.error('Error fetching front desk doctors list:', err);
-  }
-}
+      const optionsHtml = data.data.map(d => `<option value="${d.id}">${escapeHtml(d.name)} (${escapeHtml(d.specialization)}) — ₹${d.fee}</option>`).join('');
 
-// Fetch Paginated Doctors
-async function fetchDoctors() {
-  const container = document.getElementById('doctors-container');
-  container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">Loading doctors...</div>`;
-
-  try {
-    const url = `/api/doctors?search=${encodeURIComponent(state.searchQuery)}&specialty=${encodeURIComponent(state.selectedSpecialty)}&sortBy=${state.sortBy}&order=${state.sortOrder}&page=${state.currentPage}&limit=6`;
-    const res = await fetch(url);
-    const data = await res.json();
-
-    if (data.success) {
-      renderDoctors(data.data);
-      updatePagination(data.pagination);
-    } else {
-      container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--danger);">Failed to load doctors.</div>`;
+      if (bookSelect) bookSelect.innerHTML = optionsHtml;
+      if (staffSelect) staffSelect.innerHTML = optionsHtml;
     }
   } catch (err) {
     console.error('Error fetching doctors:', err);
   }
 }
 
-// Render Doctor Cards
-function renderDoctors(doctors) {
-  const container = document.getElementById('doctors-container');
-  if (!doctors || doctors.length === 0) {
-    container.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background: white; border-radius: var(--radius-lg); border: 1px solid var(--border);">
-        <div style="font-size: 3rem; margin-bottom: 10px;">🔍</div>
-        <h3>No Doctors Found</h3>
-        <p style="color: var(--text-muted);">Try adjusting your search keywords or specialty filters.</p>
-      </div>
-    `;
-    return;
-  }
-
-  let html = '';
-  doctors.forEach((doc) => {
-    const daysHtml = doc.available_days.map((day) => `<span class="day-badge">${day}</span>`).join('');
-    
-    html += `
-      <div class="doc-card">
-        <div>
-          <div class="doc-header">
-            <img src="${doc.avatar || 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=300'}" alt="${escapeHtml(doc.name)}" class="doc-avatar">
-            <div class="doc-info">
-              <h3>${escapeHtml(doc.name)}</h3>
-              <span class="specialty-badge">${escapeHtml(doc.specialty)}</span>
-              <div class="doc-qualification">${escapeHtml(doc.qualification)}</div>
-            </div>
-          </div>
-
-          <div class="doc-stats">
-            <div class="stat-item">
-              <span>Experience</span>
-              <span>${doc.experience} Years</span>
-            </div>
-            <div class="stat-item">
-              <span>Rating</span>
-              <span>⭐ ${doc.rating} (${doc.review_count})</span>
-            </div>
-            <div class="stat-item">
-              <span>Fee</span>
-              <span>₹${doc.fee}</span>
-            </div>
-          </div>
-
-          <div class="doc-address">
-            📍 <span>${escapeHtml(doc.clinic_address)}, ${escapeHtml(doc.city)}</span>
-          </div>
-
-          <div style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 6px;">Available Days:</div>
-          <div class="doc-days">${daysHtml}</div>
-        </div>
-
-        <button class="btn btn-primary" style="width: 100%; justify-content: center;" onclick="openBookingModal(${doc.id}, '${escapeHtml(doc.name)}', '${escapeHtml(doc.specialty)}', ${doc.fee})">
-          📅 Book Consultation (₹${doc.fee})
-        </button>
-      </div>
-    `;
-  });
-
-  container.innerHTML = html;
-}
-
-// FRONT DESK: Load Doctor's Day Schedule Grid
-async function loadDoctorDayGrid() {
-  const docSelect = document.getElementById('fd-doctor-select');
-  const dateSelect = document.getElementById('fd-date-select');
-  const container = document.getElementById('fd-schedule-container');
-
-  if (!docSelect || !docSelect.value || !dateSelect || !dateSelect.value) return;
-
-  container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading schedule grid...</div>`;
-
-  try {
-    const res = await fetch(`/api/appointments/doctor-day?doctor_id=${docSelect.value}&date=${dateSelect.value}`);
-    const data = await res.json();
-
-    if (data.success) {
-      let gridHtml = `
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
-          <div>
-            <h3 style="font-size: 1.2rem;">Dr. ${escapeHtml(data.doctor.name)} — Schedule Grid</h3>
-            <p style="font-size: 0.88rem; color: var(--text-muted);">${escapeHtml(data.doctor.specialty)} • Consultation Fee: ₹${data.doctor.fee} • Date: <strong>${data.date}</strong></p>
-          </div>
-          <div style="display: flex; gap: 10px;">
-            <span style="background: #d1fae5; color: #065f46; font-size: 0.82rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full);">Available: ${data.available_count}</span>
-            <span style="background: #fee2e2; color: #991b1b; font-size: 0.82rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full);">Booked: ${data.booked_count}</span>
-          </div>
-        </div>
-
-        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
-      `;
-
-      data.schedule.forEach((slot) => {
-        const isBooked = slot.status === 'BOOKED';
-        gridHtml += `
-          <div style="background: ${isBooked ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${isBooked ? '#fca5a5' : '#86efac'}; border-radius: var(--radius-md); padding: 16px;">
-            <div style="font-weight: 800; font-size: 1.05rem; color: ${isBooked ? '#991b1b' : '#166534'}; margin-bottom: 6px;">
-              ⏰ ${slot.time_slot}
-            </div>
-            
-            ${isBooked ? `
-              <div style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">👤 ${escapeHtml(slot.patient_name)}</div>
-              <div style="font-size: 0.8rem; color: var(--text-muted);">📞 ${escapeHtml(slot.patient_phone)}</div>
-              ${slot.is_emergency ? '<span style="display:inline-block; margin-top:4px; font-size:0.75rem; background:#dc2626; color:white; padding:1px 6px; border-radius:4px;">EMERGENCY</span>' : ''}
-              <div style="font-size: 0.78rem; color: #991b1b; font-weight: 600; margin-top: 6px;">🚫 LOCKED (Booked)</div>
-            ` : `
-              <div style="font-size: 0.85rem; color: #166534; font-weight: 600; margin-top: 10px;">✅ OPEN FOR BOOKING</div>
-            `}
-          </div>
-        `;
-      });
-
-      gridHtml += `</div>`;
-      container.innerHTML = gridHtml;
-    }
-  } catch (err) {
-    console.error('Error loading schedule grid:', err);
-    container.innerHTML = `<div style="color: var(--danger); text-align: center;">Failed to load schedule grid.</div>`;
-  }
-}
-
-// FRONT DESK: Patient Search Lookup
-let fdSearchTimeout;
-function handleFrontDeskPatientSearch() {
-  clearTimeout(fdSearchTimeout);
-  fdSearchTimeout = setTimeout(async () => {
-    const query = document.getElementById('fd-patient-search').value;
-    const container = document.getElementById('fd-search-results-container');
-    const grid = document.getElementById('fd-search-grid');
-
-    if (!query.trim()) {
-      container.style.display = 'none';
-      return;
-    }
-
-    try {
-      const res = await fetch(`/api/appointments/search?query=${encodeURIComponent(query)}`);
-      const data = await res.json();
-
-      if (data.success) {
-        container.style.display = 'block';
-        if (data.appointments.length === 0) {
-          grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 20px;">No patient appointments found matching "${escapeHtml(query)}".</div>`;
-          return;
-        }
-
-        let html = '';
-        data.appointments.forEach((app) => {
-          const isCancelled = app.status === 'Cancelled';
-          html += `
-            <div class="appt-card" style="margin: 0;">
-              <span class="appt-status ${isCancelled ? 'status-cancelled' : 'status-confirmed'}">${escapeHtml(app.status)}</span>
-              <h3>👤 ${escapeHtml(app.patient_name)}</h3>
-              <div style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 10px;">📞 ${escapeHtml(app.patient_phone)}</div>
-              
-              <div style="background: var(--bg-subtle); padding: 12px; border-radius: var(--radius-md); font-size: 0.88rem;">
-                <div>👨‍⚕️ <strong>Doctor:</strong> Dr. ${escapeHtml(app.doctor_name)} (${escapeHtml(app.doctor_specialty)})</div>
-                <div>📆 <strong>Date:</strong> ${app.appointment_date} at ${app.time_slot}</div>
-                ${app.cancellation_fee > 0 ? `<div style="color: var(--danger); margin-top:4px;">⚠️ Late Cancellation Fee Charged: ₹${app.cancellation_fee}</div>` : ''}
-              </div>
-            </div>
-          `;
-        });
-        grid.innerHTML = html;
-      }
-    } catch (err) {
-      console.error('Error doing patient search:', err);
-    }
-  }, 300);
-}
-
-// Pagination Controls
-function updatePagination(pagination) {
-  state.totalPages = pagination.totalPages;
-  document.getElementById('page-info').innerText = `Showing Page ${pagination.currentPage} of ${pagination.totalPages || 1} (${pagination.totalRecords} Doctors Total)`;
-  
-  const btnPrev = document.getElementById('btn-prev');
-  const btnNext = document.getElementById('btn-next');
-
-  btnPrev.disabled = !pagination.hasPrevPage;
-  btnNext.disabled = !pagination.hasNextPage;
-}
-
-function changePage(delta) {
-  state.currentPage += delta;
-  fetchDoctors();
-}
-
-// Search & Filter Handlers
-let searchTimeout;
-function handleSearch() {
-  clearTimeout(searchTimeout);
-  searchTimeout = setTimeout(() => {
-    state.searchQuery = document.getElementById('search-input').value;
-    state.currentPage = 1;
-    fetchDoctors();
-  }, 300);
-}
-
-function filterSpecialty(spec) {
-  state.selectedSpecialty = spec;
-  state.currentPage = 1;
-  fetchSpecialties();
-  fetchDoctors();
-}
-
-function handleSortChange() {
-  const val = document.getElementById('sort-select').value;
-  const [field, order] = val.split('-');
-  state.sortBy = field;
-  state.sortOrder = order;
-  state.currentPage = 1;
-  fetchDoctors();
-}
-
-// Booking Modal Operations
-function openBookingModal(doctorId, docName, specialty, fee) {
-  if (!state.token) {
-    showToast('Please login to book an appointment.', 'error');
-    openAuthModal('login');
-    return;
-  }
-
-  state.currentDoctorForBooking = { id: doctorId, name: docName, specialty, fee };
-  document.getElementById('book-doctor-id').value = doctorId;
-  document.getElementById('modal-doctor-sub').innerText = `Dr. ${docName} (${specialty}) • Consultation Fee: ₹${fee}`;
-  
-  if (state.user) {
-    document.getElementById('book-patient-name').value = state.user.name || '';
-    document.getElementById('book-patient-phone').value = state.user.phone || '';
-  }
-
-  document.getElementById('booking-modal').classList.add('active');
-}
-
-function closeBookingModal() {
-  document.getElementById('booking-modal').classList.remove('active');
-}
-
-// Submit Appointment Booking
-async function submitAppointment(e) {
+// Submit Booking Form
+async function submitMainBooking(e) {
   e.preventDefault();
 
-  const doctor_id = document.getElementById('book-doctor-id').value;
+  const doctor_id = document.getElementById('book-doctor-select').value;
   const patient_name = document.getElementById('book-patient-name').value;
   const patient_phone = document.getElementById('book-patient-phone').value;
   const appointment_date = document.getElementById('book-date').value;
-  const time_slot = document.getElementById('book-slot').value;
+  const start_time = document.getElementById('book-start-time').value;
+  const end_time = document.getElementById('book-end-time').value;
   const symptoms = document.getElementById('book-symptoms').value;
-  const is_emergency = document.getElementById('book-emergency').checked;
+
+  if (start_time >= end_time) {
+    showToast('Validation Error: Start time must be earlier than End time.', 'error');
+    return;
+  }
 
   try {
     const res = await fetch('/api/appointments', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${state.token}`
+        'Authorization': state.token ? `Bearer ${state.token}` : ''
       },
       body: JSON.stringify({
         doctor_id,
         patient_name,
         patient_phone,
         appointment_date,
-        time_slot,
-        symptoms,
-        is_emergency
+        start_time,
+        end_time,
+        symptoms
       })
     });
 
     const data = await res.json();
+
     if (data.success) {
       showToast(data.message, 'success');
-      closeBookingModal();
       fetchStats();
-      switchTab('appointments');
+      if (state.token) {
+        switchTab('patient');
+      } else {
+        switchTab('staff');
+      }
     } else {
       showToast(data.message, 'error');
     }
   } catch (err) {
-    console.error('Error booking appointment:', err);
-    showToast('Server error booking appointment.', 'error');
+    console.error('Booking Error:', err);
+    showToast('Failed to connect to server.', 'error');
   }
 }
 
-// Fetch User Appointments
-async function fetchMyAppointments() {
-  const container = document.getElementById('appointments-container');
-  container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px;">Fetching your appointments...</div>`;
+// Fetch Patient Appointments
+async function fetchPatientAppointments() {
+  const container = document.getElementById('patient-appts-container');
+  container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px;">Loading your appointments...</div>`;
 
   try {
-    const res = await fetch('/api/appointments/my', {
-      headers: { 'Authorization': `Bearer ${state.token}` }
+    const res = await fetch(`/api/appointments?patient_id=${state.user.id}&limit=50`, {
+      headers: state.token ? { 'Authorization': `Bearer ${state.token}` } : {}
     });
     const data = await res.json();
 
     if (data.success) {
-      renderAppointments(data.appointments);
+      renderAppointmentsList(data.data, container, true);
     } else {
       container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--danger); padding: 40px;">${escapeHtml(data.message)}</div>`;
     }
   } catch (err) {
-    console.error('Error fetching my appointments:', err);
+    console.error('Error fetching patient appointments:', err);
   }
 }
 
-// Render User Appointments
-function renderAppointments(appts) {
-  const container = document.getElementById('appointments-container');
+// Staff: Load Doctor Day View
+async function loadDoctorDayView() {
+  const docSelect = document.getElementById('staff-doctor-select');
+  const dateSelect = document.getElementById('staff-date-select');
+  const container = document.getElementById('staff-day-container');
+
+  if (!docSelect || !docSelect.value || !dateSelect || !dateSelect.value) return;
+
+  container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading doctor day view...</div>`;
+
+  try {
+    const res = await fetch(`/api/doctors/${docSelect.value}/appointments?date=${dateSelect.value}`);
+    const data = await res.json();
+
+    if (data.success) {
+      let html = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 1.2rem;">${escapeHtml(data.doctor.name)} — Day Schedule View</h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted);">${escapeHtml(data.doctor.specialization)} • Date: <strong>${data.date}</strong></p>
+          </div>
+          <span style="background: var(--primary-light); color: var(--primary-dark); font-size: 0.85rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full);">Booked Appointments: ${data.count}</span>
+        </div>
+      `;
+
+      if (data.appointments.length === 0) {
+        html += `<div style="text-align: center; padding: 30px; color: var(--text-muted);">No appointments booked for this doctor on ${data.date}.</div>`;
+      } else {
+        html += `<div class="appointments-grid">`;
+        data.appointments.forEach((app) => {
+          const isCancelled = app.status === 'CANCELLED';
+          html += `
+            <div class="appt-card ${isCancelled ? 'emergency' : ''}" style="margin: 0;">
+              <span class="appt-status ${isCancelled ? 'status-cancelled' : 'status-confirmed'}">${escapeHtml(app.status)}</span>
+              
+              <h4 style="font-size: 1.05rem; margin-bottom: 4px;">⏰ ${app.start_time} - ${app.end_time}</h4>
+              <div style="font-weight: 700; color: var(--text-primary);">👤 ${escapeHtml(app.patient_name)}</div>
+              <div style="font-size: 0.85rem; color: var(--text-muted);">📞 ${escapeHtml(app.patient_phone)}</div>
+              ${app.symptoms ? `<div style="font-size: 0.82rem; margin-top:6px;">📝 ${escapeHtml(app.symptoms)}</div>` : ''}
+              ${isCancelled ? `<div style="color: var(--danger); font-size: 0.8rem; margin-top: 6px;">Late Fee Charged: ₹${app.cancellation_fee}</div>` : ''}
+            </div>
+          `;
+        });
+        html += `</div>`;
+      }
+
+      container.innerHTML = html;
+    }
+  } catch (err) {
+    console.error('Error loading doctor day view:', err);
+  }
+}
+
+// Staff: Patient Search Lookup
+let searchTimeout;
+function handlePatientSearch() {
+  clearTimeout(searchTimeout);
+  searchTimeout = setTimeout(async () => {
+    const query = document.getElementById('staff-search-input').value;
+    const container = document.getElementById('staff-all-appts');
+
+    if (!query.trim()) {
+      fetchStaffAllAppointments();
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/appointments/search?patientName=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      if (data.success) {
+        renderAppointmentsList(data.appointments, container, false);
+      }
+    } catch (err) {
+      console.error('Search error:', err);
+    }
+  }, 300);
+}
+
+// Staff: Fetch All Appointments (Paginated & Sorted)
+async function fetchStaffAllAppointments() {
+  const container = document.getElementById('staff-all-appts');
+  try {
+    const url = `/api/appointments?page=${state.currentPage}&limit=${state.limit}&sortBy=${state.sortBy}&order=${state.sortOrder}`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    if (data.success) {
+      renderAppointmentsList(data.data, container, false);
+      updatePagination(data.pagination);
+    }
+  } catch (err) {
+    console.error('Fetch all appointments error:', err);
+  }
+}
+
+// Render Appointments List Utility
+function renderAppointmentsList(appts, container, isPatientView) {
   if (!appts || appts.length === 0) {
     container.innerHTML = `
-      <div style="grid-column: 1/-1; text-align: center; padding: 60px 20px; background: white; border-radius: var(--radius-lg); border: 1px solid var(--border);">
-        <div style="font-size: 3rem; margin-bottom: 10px;">📅</div>
-        <h3>No Appointments Scheduled</h3>
-        <p style="color: var(--text-muted); margin-bottom: 16px;">You haven't booked any consultations yet.</p>
-        <button class="btn btn-primary" onclick="switchTab('doctors')">🔍 Search Doctors Now</button>
+      <div style="grid-column: 1/-1; text-align: center; padding: 40px; background: white; border-radius: var(--radius-lg); border: 1px solid var(--border);">
+        <div style="font-size: 2.5rem; margin-bottom: 10px;">📅</div>
+        <h3>No Appointments Found</h3>
       </div>
     `;
     return;
@@ -497,38 +311,32 @@ function renderAppointments(appts) {
 
   let html = '';
   appts.forEach((app) => {
-    const isEmergency = app.is_emergency === 1;
-    const isCancelled = app.status === 'Cancelled';
-    const hasLateFee = app.cancellation_fee > 0;
+    const isCancelled = app.status === 'CANCELLED';
 
     html += `
-      <div class="appt-card ${isEmergency ? 'emergency' : ''}">
+      <div class="appt-card ${isCancelled ? 'emergency' : ''}">
         <span class="appt-status ${isCancelled ? 'status-cancelled' : 'status-confirmed'}">${escapeHtml(app.status)}</span>
         
-        ${isEmergency ? '<div class="emergency-tag">🚨 EMERGENCY PRIORITY SLOT</div>' : ''}
-        
-        <h3 style="font-size: 1.15rem; margin-bottom: 6px;">Dr. ${escapeHtml(app.doctor_name)}</h3>
-        <div style="color: var(--primary); font-weight: 600; font-size: 0.88rem; margin-bottom: 12px;">${escapeHtml(app.doctor_specialty)} • Fee: ₹${app.doctor_fee}</div>
+        <h3 style="font-size: 1.1rem; margin-bottom: 4px;">Dr. ${escapeHtml(app.doctor_name)}</h3>
+        <div style="color: var(--primary); font-weight: 600; font-size: 0.88rem; margin-bottom: 12px;">${escapeHtml(app.doctor_specialization || 'Clinic Doctor')}</div>
 
-        <div style="background: var(--bg-subtle); padding: 12px; border-radius: var(--radius-md); font-size: 0.88rem; margin-bottom: 16px;">
+        <div style="background: var(--bg-subtle); padding: 12px; border-radius: var(--radius-md); font-size: 0.88rem; margin-bottom: 14px;">
           <div>📆 <strong>Date:</strong> ${app.appointment_date}</div>
-          <div>⏰ <strong>Slot:</strong> ${app.time_slot}</div>
-          <div>👤 <strong>Patient:</strong> ${escapeHtml(app.patient_name)} (${escapeHtml(app.patient_phone)})</div>
-          ${app.symptoms ? `<div style="margin-top: 6px; color: var(--text-secondary);">📝 <em>${escapeHtml(app.symptoms)}</em></div>` : ''}
+          <div>⏰ <strong>Time Slot:</strong> ${app.start_time} - ${app.end_time}</div>
+          <div>👤 <strong>Patient:</strong> ${escapeHtml(app.patient_name)} (${escapeHtml(app.patient_phone || 'N/A')})</div>
+          ${app.symptoms ? `<div style="margin-top: 4px; color: var(--text-secondary);">📝 <em>${escapeHtml(app.symptoms)}</em></div>` : ''}
           ${isCancelled ? `
-            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
-              <span style="font-weight: 700; color: ${hasLateFee ? 'var(--danger)' : 'var(--success)'};">
-                ${hasLateFee ? `⚠️ Late Cancellation Fee: ₹${app.cancellation_fee}` : `✅ Cancelled for FREE (in good time)`}
-              </span>
+            <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid var(--border); font-weight: 700; color: ${app.cancellation_fee > 0 ? 'var(--danger)' : 'var(--success)'};">
+              ${app.cancellation_fee > 0 ? `⚠️ Late Cancellation Fee: ₹${app.cancellation_fee}` : `✅ Cancelled for FREE (in good time)`}
             </div>
           ` : ''}
         </div>
 
         ${!isCancelled ? `
-          <div style="display: flex; gap: 10px;">
-            <button class="btn btn-danger btn-sm" style="flex: 1; justify-content: center;" onclick="cancelAppointment(${app.id})">Cancel Appointment</button>
-          </div>
-        ` : `<div style="font-size: 0.85rem; color: var(--danger); text-align: center;">This slot has been cancelled.</div>`}
+          <button class="btn btn-danger btn-sm" style="width: 100%; justify-content: center;" onclick="cancelAppointment(${app.id}, '${app.appointment_date}', '${app.start_time}')">
+            Cancel Appointment
+          </button>
+        ` : `<div style="font-size: 0.82rem; color: var(--danger); text-align: center;">Slot is CANCELLED (unblocked for others).</div>`}
       </div>
     `;
   });
@@ -536,24 +344,27 @@ function renderAppointments(appts) {
   container.innerHTML = html;
 }
 
-// Cancel Appointment (with Late Cancellation Calculation Notice)
-async function cancelAppointment(id) {
-  if (!confirm('Are you sure you want to cancel this appointment?\n\nNote: Cancellations made 2+ hours in advance are FREE (₹0). Late cancellations (within 2 hours) carry a small ₹150 fee.')) return;
+// Cancel Appointment with Rule 6 Calculation Notice
+async function cancelAppointment(id, dateStr, startTimeStr) {
+  if (!confirm('Are you sure you want to cancel this appointment?\n\nRule: Cancellations > 2 hours before start time = ₹0 fee. Cancellations <= 2 hours = ₹100 fee.')) return;
 
   try {
     const res = await fetch(`/api/appointments/${id}/cancel`, {
-      method: 'PATCH',
+      method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${state.token}`
+        'Authorization': state.token ? `Bearer ${state.token}` : ''
       },
-      body: JSON.stringify({ reason: 'Patient requested cancellation' })
+      body: JSON.stringify({ reason: 'User requested cancellation' })
     });
+
     const data = await res.json();
     if (data.success) {
-      showToast(data.message, data.is_late_cancellation ? 'error' : 'success');
-      fetchMyAppointments();
+      showToast(data.message, data.cancellation_fee > 0 ? 'error' : 'success');
       fetchStats();
+      if (state.token) fetchPatientAppointments();
+      fetchStaffAllAppointments();
+      loadDoctorDayView();
     } else {
       showToast(data.message, 'error');
     }
@@ -562,25 +373,33 @@ async function cancelAppointment(id) {
   }
 }
 
-// Fetch Logs
-async function fetchLogs() {
-  const container = document.getElementById('logs-container');
-  try {
-    const res = await fetch('/api/stats/logs');
-    const data = await res.json();
-    if (data.success) {
-      let html = '';
-      data.logs.forEach((log) => {
-        html += `<div style="padding: 8px 0; border-bottom: 1px solid #f1f5f9;">
-          <span style="color: #64748b;">[${log.timestamp}]</span> 
-          <strong style="color: #0d9488;">${log.action}</strong>: ${escapeHtml(log.details)}
-        </div>`;
-      });
-      container.innerHTML = html || '<div>No logs recorded yet.</div>';
-    }
-  } catch (err) {
-    container.innerHTML = '<div style="color: red;">Error fetching logs.</div>';
-  }
+// Pagination & Sorting Handlers
+function updatePagination(pagination) {
+  state.totalPages = pagination.totalPages;
+  document.getElementById('page-info').innerText = `Page ${pagination.currentPage} of ${pagination.totalPages || 1} (${pagination.totalRecords} Records Total)`;
+
+  document.getElementById('btn-prev').disabled = !pagination.hasPrevPage;
+  document.getElementById('btn-next').disabled = !pagination.hasNextPage;
+}
+
+function changePage(delta) {
+  state.currentPage += delta;
+  fetchStaffAllAppointments();
+}
+
+function handleSortChange() {
+  const val = document.getElementById('sort-by-select').value;
+  const [field, order] = val.split('-');
+  state.sortBy = field;
+  state.sortOrder = order;
+  state.currentPage = 1;
+  fetchStaffAllAppointments();
+}
+
+function handleLimitChange() {
+  state.limit = document.getElementById('page-limit-select').value;
+  state.currentPage = 1;
+  fetchStaffAllAppointments();
 }
 
 // Auth Functions
@@ -634,6 +453,12 @@ async function submitLogin(e) {
       updateAuthUI();
       closeAuthModal();
       showToast(`Welcome back, ${data.user.name}!`, 'success');
+      
+      if (data.user.role === 'staff') {
+        switchTab('staff');
+      } else {
+        switchTab('patient');
+      }
     } else {
       showToast(data.message, 'error');
     }
@@ -646,14 +471,14 @@ async function submitRegister(e) {
   e.preventDefault();
   const name = document.getElementById('reg-name').value;
   const email = document.getElementById('reg-email').value;
-  const phone = document.getElementById('reg-phone').value;
+  const role = document.getElementById('reg-role').value;
   const password = document.getElementById('reg-password').value;
 
   try {
     const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name, email, phone, password })
+      body: JSON.stringify({ name, email, role, password })
     });
     const data = await res.json();
 
@@ -684,7 +509,6 @@ function handleLogout() {
   switchTab('landing');
 }
 
-// Toast Alert System
 function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
@@ -697,7 +521,6 @@ function showToast(message, type = 'success') {
   }, 4000);
 }
 
-// Helper Escape HTML
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)

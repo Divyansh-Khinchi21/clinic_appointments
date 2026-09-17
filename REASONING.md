@@ -1,90 +1,100 @@
-# 🧠 Engineering Thought Process & Reasoning Document
+# 🧠 Engineering Thought Process & Implementation Reasoning
 
 **Candidate Name:** Divyansh Khinchi  
 **University Roll No:** 23ESKCS073  
-**Email:** b230538@skit.ac.in / divyanshkhinchi66@gmail.com  
 **College:** Swami Keshvanand Institute of Technology (SKIT), Jaipur  
+**Email:** b230538@skit.ac.in / divyanshkhinchi66@gmail.com  
 **Assigned Problem:** `clinic_appointments`  
 **Application Name:** CarePulse  
 **Round:** Round 2 – AIR ("Builder" Round), Auriga IT Placement Drive 2026  
 
 ---
 
-## 1. Analyzing the Official Spec & Problem Storyline
+## 1. Problem Understanding & Spec Analysis
 
-When reviewing the official Auriga IT problem assignment sheet for **`clinic_appointments`**, the core requirement was clear:
+The core requirement of **`clinic_appointments`** is to solve front-desk scheduling friction in busy clinics:
 
-> *"The desk's frustrations are the spec — build it for any clinic. Get conflict-free booking and the cancellation rule right first, then the lookups."*
-
-I broke this problem statement into four explicit implementation requirements:
-1. **Never let two appointments for the same doctor overlap (Conflict-Free Booking):** Strict backend validation blocking any duplicate booking for the same doctor, date, and time slot.
-2. **Fair Cancellation Policy (Free vs Late Fee):**
-   - Cancelling in good time (more than 2 hours before the slot) ➔ **FREE (₹0 fee)**.
-   - Late cancellation (within 2 hours of the slot) ➔ **Small ₹150 fee** to compensate the clinic/doctor.
-3. **See a Doctor's Day Schedule:** Dedicated Front Desk Console displaying a doctor's full timeline for any given date, marking slots as `BOOKED` or `AVAILABLE`.
-4. **Find a Patient's Appointment by Name:** Fast lookup search bar across patient names and phone numbers.
+1. **Conflict-Free Appointment Booking:** Never allow overlapping appointments for the same doctor on the same date.
+2. **Fair Late-Cancellation Handling:**
+   - Cancel > 2 hours before start time ➔ **₹0 fee**.
+   - Cancel <= 2 hours before start time ➔ **₹100 fee**.
+3. **Doctor Schedule Management:** Front desk must be able to view any doctor's daily appointments ordered by `start_time`.
+4. **Patient Search & Pagination:** Instant patient search by name, with paginated (`page`, `limit`) and sorted (`sortBy`, `order`) API responses.
 
 ---
 
-## 2. Technical Architecture & Database Schema
+## 2. Key Architectural Decisions
 
-I built **CarePulse** as a modern Node.js + Express + SQLite + HTML5/CSS3/Vanilla JS single page application.
-
-### SQLite Database Design
-I updated `database.sqlite` with 4 relational tables:
-- `users` (Authentication & roles: patient/doctor/admin)
-- `doctors` (Directory, specialties, fees, clinic locations, qualifications)
-- `appointments` (Patient ID, Doctor ID, Date, Slot, Symptoms, Emergency Flag, Status, `cancellation_fee`, `cancellation_reason`, `cancelled_at`)
-- `system_logs` (Audit logging for conflict-free bookings and cancellation fees)
+### Tech Stack Selection
+- **Backend:** Node.js + Express.js (High performance, clean RESTful endpoints).
+- **Database:** SQLite3 (`database.sqlite`) with promisified async/await wrappers (`queryRun`, `queryGet`, `queryAll`). Chosen for zero external database server overhead in GitHub Codespaces.
+- **Authentication:** JWT (`jsonwebtoken`) & `bcryptjs` password hashing with role support (`patient` vs `staff`).
+- **Frontend:** Single Page Web Application (HTML5, Modern CSS Variables, Vanilla JavaScript SPA).
 
 ---
 
-## 3. Implementation of Core Business Logic
+## 3. Database Schema Design
 
-### A. Conflict-Free Booking Validation
-In `src/routes/appointments.js`, before executing any `INSERT` query into `appointments`, the backend performs a check:
-```javascript
-const existingAppt = await queryGet(
-  'SELECT id, patient_name FROM appointments WHERE doctor_id = ? AND appointment_date = ? AND time_slot = ? AND status != ?',
-  [doctor_id, appointment_date, time_slot, 'Cancelled']
-);
+I designed four relational tables:
+- `users`: `id`, `name`, `email` (UNIQUE), `password`, `role` (`patient`/`staff`), `phone`, `created_at`.
+- `doctors`: `id`, `name`, `specialization`, `qualification`, `experience`, `fee`, `rating`, `clinic_address`, `city`, `created_at`.
+- `appointments`: `id`, `doctor_id`, `patient_id`, `patient_name`, `patient_phone`, `appointment_date`, `start_time` (HH:MM), `end_time` (HH:MM), `symptoms`, `status` (`CONFIRMED`/`CANCELLED`), `cancellation_fee`, `cancellation_reason`, `created_at`.
+- `cancellations`: `id`, `appointment_id`, `cancelled_at`, `cancellation_fee`.
+
+---
+
+## 4. Business Logic Implementation Details
+
+### A. Backend Interval Overlap Logic (Double-Booking Prevention)
+To prevent double-booking on the backend, I implemented mathematical interval-overlap checking:
+
+An overlap between existing interval `(start_A, end_A)` and new interval `(start_B, end_B)` occurs if:
+$$\text{start}_B < \text{end}_A \quad \text{AND} \quad \text{end}_B > \text{start}_A$$
+
+In SQL (`src/routes/appointments.js`):
+```sql
+SELECT id, patient_name FROM appointments 
+WHERE doctor_id = ? 
+  AND appointment_date = ? 
+  AND status = 'CONFIRMED'
+  AND (start_time < ? AND end_time > ?)
 ```
-If an active appointment already exists, the server blocks the request with a `400 Bad Request` response:
-> `🚫 DOUBLE-BOOKING PREVENTED: Dr. Rajesh Sharma already has a booked appointment at 10:00 AM on 2026-09-18.`
+- **Overlap Case (Test 2):** Existing `10:00 - 10:30` + New `10:15 - 10:45` ➔ Evaluates to `TRUE` (`10:15 < 10:30` AND `10:45 > 10:00`). Rejected with `400 Bad Request`.
+- **Boundary Touch Case (Test 3):** Existing `10:00 - 10:30` + New `10:30 - 11:00` ➔ Evaluates to `FALSE` (`10:30 < 10:30` is False). Allowed!
 
 ### B. Late Cancellation Fee Logic
-When a patient or front desk cancels an appointment:
-1. The backend parses `appointment_date` + `time_slot` into a JavaScript `Date` object (`slotDateTime`).
-2. It calculates `diffInHours = (slotDateTime - Date.now()) / (1000 * 60 * 60)`.
-3. If `diffInHours >= 2`, cancellation is **FREE (`cancellation_fee = 0`)**.
-4. If `diffInHours < 2`, it applies a **₹150 late cancellation fee** and records the reason in SQLite.
-
-### C. Front Desk Lookups
-1. **Doctor's Day Schedule Grid:** `GET /api/appointments/doctor-day` generates a complete schedule matrix for the doctor on that date, showing open vs locked slots.
-2. **Patient Lookup:** `GET /api/appointments/search` allows front desk receptionists to search appointments instantly by patient name or phone number.
+When a cancellation request hits `POST /api/appointments/:id/cancel`:
+1. The server parses `appointment_date` + `start_time` into a JavaScript `Date` object (`apptDateTime`).
+2. Calculates `diffInHours = (apptDateTime - Date.now()) / (1000 * 60 * 60)`.
+3. If `diffInHours > 2`: `cancellation_fee = 0`.
+4. If `diffInHours <= 2`: `cancellation_fee = 100`.
+5. Updates appointment status to `CANCELLED` (unblocking the slot) and logs a row in `cancellations`.
 
 ---
 
-## 4. Development Challenges & Debugging (How I Fixed Them)
+## 5. Testing & Verification Summary
 
-### Challenge 1: Express 5 Wildcard Route Crash
-- **Symptom:** Server threw `PathError: Missing parameter name at index 1: *` on launch.
-- **Fix:** Replaced legacy `app.get('*', ...)` with `app.use((req, res) => ...)` middleware to properly fallback non-API routes to `index.html`.
+All 10 test scenarios were executed via an automated test script (`scratch/test_suite.js`) against the live server:
 
-### Challenge 2: Date & Time Parsing for Cancellation Calculation
-- **Symptom:** Comparing ISO strings directly led to incorrect hours calculation when determining late cancellation fees.
-- **Fix:** Built a helper `parseAppointmentDateTime(dateStr, timeSlotStr)` that converts strings like `"2026-09-18"` and `"10:00 AM"` into accurate native JavaScript timestamps for subtraction math.
-
----
-
-## 5. Verification & Testing
-
-1. **Conflict Testing:** Attempted to book two appointments for Dr. Rajesh Sharma at 10:00 AM on the same date. Verified that the 2nd booking was blocked with the double-booking error message.
-2. **Cancellation Testing:** Cancelled a slot scheduled for the next day (verified ₹0 fee), then tested cancelling a slot within 1 hour (verified ₹150 late cancellation fee applied).
-3. **Front Desk Lookups Testing:** Checked doctor day schedule grid for date 2026-09-18 and searched patient name "Divyansh" to confirm instant appointment retrieval.
+1. **TEST 1 (Dr. Sharma 10:00-10:30 Patient A):** `HTTP 201 Created` — Confirmed.
+2. **TEST 2 (Dr. Sharma 10:15-10:45 Patient B):** `HTTP 400 Bad Request` — REJECTED (Overlap).
+3. **TEST 3 (Dr. Sharma 10:30-11:00 Patient B):** `HTTP 201 Created` — ALLOWED (Boundary touch).
+4. **TEST 4 (Dr. Mehta 10:15-10:45 Patient C):** `HTTP 201 Created` — ALLOWED (Different doctor).
+5. **TEST 5 (Cancel >2h before):** `CANCELLED`, Fee = **₹0**.
+6. **TEST 6 (Cancel <=2h before):** `CANCELLED`, Fee = **₹100**.
+7. **TEST 7 (Patient Name Search):** Matching records returned.
+8. **TEST 8 (Pagination `?page=1&limit=10`):** Paginated output with metadata.
+9. **TEST 9 (Sorting `?sortBy=start_time&order=asc`):** Appointments ordered by start time.
+10. **TEST 10 (Start time >= End time):** `HTTP 400 Bad Request` — Validation Error.
 
 ---
 
-## 6. Reflection
+## 6. Problems Encountered & How They Were Fixed
 
-By prioritizing the core spec — **conflict-free booking, cancellation rules, and front-desk lookups** — I was able to deliver a robust, production-ready solution within the 2.5-hour constraint.
+### Problem 1: Express 5 Route Parsing Error
+- **Symptom:** Server crashed on `app.get('*', ...)` with `PathError: Missing parameter name at index 1: *`.
+- **Fix:** Replaced wildcard regex string with Express 5 middleware fallback `app.use((req, res) => ...)` to serve SPA index file cleanly.
+
+### Problem 2: UTF-8 Unicode Terminal Encoding on Windows
+- **Symptom:** Printing emoji symbols in Python CLI caused `UnicodeEncodeError`.
+- **Fix:** Replaced UTF-8 emojis with plain text tags (`[SUCCESS]`, `[ERROR]`, `[CANCELLED]`) for cross-platform terminal compatibility.
