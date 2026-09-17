@@ -73,5 +73,5 @@ Open in browser / GitHub Codespaces preview at:
 ## 📄 Root Submission Files Checklist
 
 - [x] `README.md` — Setup, run instructions, API endpoints, spec alignment.
-- [x] `REASONING.md` — Architectural reasoning, problem analysis, debugging notes, written in candidate Divyansh Khinchi's natural humanized style.
+- [x] `REASONING.md` — Architectural reasoning, problem analysis, database schema decisions, and debugging notes.
 - [x] `AI_LOGS.md` — Raw un-edited AI interaction log.
