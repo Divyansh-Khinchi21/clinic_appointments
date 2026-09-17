@@ -33,6 +33,7 @@
 - **Database:** SQLite3 (`database.sqlite`) with relational schema & foreign key integrity
 - **Authentication:** JSON Web Tokens (JWT) & `bcryptjs` password hashing
 - **Frontend:** Single Page Web Application (HTML5, Modern CSS Variables, Flexbox/Grid, Vanilla JavaScript SPA)
+- **Python Reference Script:** `clinic_appointments.py` (CLI script implementing double-booking prevention & late cancellation rules)
 
 ---
 
