@@ -9,7 +9,8 @@ let state = {
   selectedSpecialty: 'All',
   sortBy: 'rating',
   sortOrder: 'DESC',
-  currentDoctorForBooking: null
+  currentDoctorForBooking: null,
+  doctorsListAll: []
 };
 
 // DOM Load Initialization
@@ -22,13 +23,20 @@ function initApp() {
   fetchStats();
   fetchSpecialties();
   fetchDoctors();
+  fetchAllDoctorsForFrontDesk();
 
-  // Set minimum date for booking to today
+  // Set minimum date for booking & front desk date picker to today
   const dateInput = document.getElementById('book-date');
+  const fdDateInput = document.getElementById('fd-date-select');
+  const today = new Date().toISOString().split('T')[0];
+  
   if (dateInput) {
-    const today = new Date().toISOString().split('T')[0];
     dateInput.min = today;
     dateInput.value = today;
+  }
+  if (fdDateInput) {
+    fdDateInput.min = today;
+    fdDateInput.value = today;
   }
 }
 
@@ -58,49 +66,43 @@ function updateAuthUI() {
 function switchTab(tab) {
   const briefSec = document.getElementById('product-brief');
   const docSec = document.getElementById('doctors-section');
+  const fdSec = document.getElementById('frontdesk-section');
   const apptSec = document.getElementById('appointments-section');
   const logSec = document.getElementById('logs-section');
 
-  // Nav links highlight
   document.querySelectorAll('.nav-link').forEach((link) => link.classList.remove('active'));
+
+  briefSec.style.display = 'none';
+  docSec.style.display = 'none';
+  fdSec.style.display = 'none';
+  apptSec.style.display = 'none';
+  logSec.style.display = 'none';
 
   if (tab === 'landing') {
     briefSec.style.display = 'block';
     docSec.style.display = 'block';
-    apptSec.style.display = 'none';
-    logSec.style.display = 'none';
     window.scrollTo({ top: 0, behavior: 'smooth' });
   } else if (tab === 'doctors') {
-    briefSec.style.display = 'none';
     docSec.style.display = 'block';
-    apptSec.style.display = 'none';
-    logSec.style.display = 'none';
-    document.getElementById('doctors-section').scrollIntoView({ behavior: 'smooth' });
+    docSec.scrollIntoView({ behavior: 'smooth' });
+  } else if (tab === 'frontdesk') {
+    fdSec.style.display = 'block';
+    loadDoctorDayGrid();
   } else if (tab === 'appointments') {
     if (!state.token) {
-      showToast('Please login first to view your appointments.', 'error');
+      showToast('Please login to view your appointments.', 'error');
       openAuthModal('login');
       return;
     }
-    briefSec.style.display = 'none';
-    docSec.style.display = 'none';
     apptSec.style.display = 'block';
-    logSec.style.display = 'none';
     fetchMyAppointments();
   } else if (tab === 'logs') {
-    briefSec.style.display = 'none';
-    docSec.style.display = 'none';
-    apptSec.style.display = 'none';
     logSec.style.display = 'block';
     fetchLogs();
   }
 }
 
-function scrollToBrief() {
-  document.getElementById('product-brief').scrollIntoView({ behavior: 'smooth' });
-}
-
-// Fetch Platform Summary Stats
+// Fetch Summary Stats
 async function fetchStats() {
   try {
     const res = await fetch('/api/stats/summary');
@@ -116,7 +118,7 @@ async function fetchStats() {
   }
 }
 
-// Fetch Specialties for Filter Pills
+// Fetch Specialties
 async function fetchSpecialties() {
   try {
     const res = await fetch('/api/doctors/specialties/all');
@@ -134,10 +136,27 @@ async function fetchSpecialties() {
   }
 }
 
-// Fetch Doctors (with Search, Filter, Pagination, Sorting)
+// Fetch All Doctors for Front Desk Dropdown
+async function fetchAllDoctorsForFrontDesk() {
+  try {
+    const res = await fetch('/api/doctors?limit=50');
+    const data = await res.json();
+    if (data.success) {
+      state.doctorsListAll = data.data;
+      const select = document.getElementById('fd-doctor-select');
+      if (select) {
+        select.innerHTML = data.data.map((d) => `<option value="${d.id}">${escapeHtml(d.name)} (${escapeHtml(d.specialty)})</option>`).join('');
+      }
+    }
+  } catch (err) {
+    console.error('Error fetching front desk doctors list:', err);
+  }
+}
+
+// Fetch Paginated Doctors
 async function fetchDoctors() {
   const container = document.getElementById('doctors-container');
-  container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">Loading verified doctors...</div>`;
+  container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--text-muted);">Loading doctors...</div>`;
 
   try {
     const url = `/api/doctors?search=${encodeURIComponent(state.searchQuery)}&specialty=${encodeURIComponent(state.selectedSpecialty)}&sortBy=${state.sortBy}&order=${state.sortOrder}&page=${state.currentPage}&limit=6`;
@@ -152,7 +171,6 @@ async function fetchDoctors() {
     }
   } catch (err) {
     console.error('Error fetching doctors:', err);
-    container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: var(--danger);">Network error fetching doctors.</div>`;
   }
 }
 
@@ -219,6 +237,115 @@ function renderDoctors(doctors) {
   container.innerHTML = html;
 }
 
+// FRONT DESK: Load Doctor's Day Schedule Grid
+async function loadDoctorDayGrid() {
+  const docSelect = document.getElementById('fd-doctor-select');
+  const dateSelect = document.getElementById('fd-date-select');
+  const container = document.getElementById('fd-schedule-container');
+
+  if (!docSelect || !docSelect.value || !dateSelect || !dateSelect.value) return;
+
+  container.innerHTML = `<div style="text-align: center; padding: 20px; color: var(--text-muted);">Loading schedule grid...</div>`;
+
+  try {
+    const res = await fetch(`/api/appointments/doctor-day?doctor_id=${docSelect.value}&date=${dateSelect.value}`);
+    const data = await res.json();
+
+    if (data.success) {
+      let gridHtml = `
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid var(--border); padding-bottom: 12px;">
+          <div>
+            <h3 style="font-size: 1.2rem;">Dr. ${escapeHtml(data.doctor.name)} — Schedule Grid</h3>
+            <p style="font-size: 0.88rem; color: var(--text-muted);">${escapeHtml(data.doctor.specialty)} • Consultation Fee: ₹${data.doctor.fee} • Date: <strong>${data.date}</strong></p>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <span style="background: #d1fae5; color: #065f46; font-size: 0.82rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full);">Available: ${data.available_count}</span>
+            <span style="background: #fee2e2; color: #991b1b; font-size: 0.82rem; font-weight: 700; padding: 4px 12px; border-radius: var(--radius-full);">Booked: ${data.booked_count}</span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 16px;">
+      `;
+
+      data.schedule.forEach((slot) => {
+        const isBooked = slot.status === 'BOOKED';
+        gridHtml += `
+          <div style="background: ${isBooked ? '#fef2f2' : '#f0fdf4'}; border: 1px solid ${isBooked ? '#fca5a5' : '#86efac'}; border-radius: var(--radius-md); padding: 16px;">
+            <div style="font-weight: 800; font-size: 1.05rem; color: ${isBooked ? '#991b1b' : '#166534'}; margin-bottom: 6px;">
+              ⏰ ${slot.time_slot}
+            </div>
+            
+            ${isBooked ? `
+              <div style="font-size: 0.88rem; font-weight: 700; color: var(--text-primary);">👤 ${escapeHtml(slot.patient_name)}</div>
+              <div style="font-size: 0.8rem; color: var(--text-muted);">📞 ${escapeHtml(slot.patient_phone)}</div>
+              ${slot.is_emergency ? '<span style="display:inline-block; margin-top:4px; font-size:0.75rem; background:#dc2626; color:white; padding:1px 6px; border-radius:4px;">EMERGENCY</span>' : ''}
+              <div style="font-size: 0.78rem; color: #991b1b; font-weight: 600; margin-top: 6px;">🚫 LOCKED (Booked)</div>
+            ` : `
+              <div style="font-size: 0.85rem; color: #166534; font-weight: 600; margin-top: 10px;">✅ OPEN FOR BOOKING</div>
+            `}
+          </div>
+        `;
+      });
+
+      gridHtml += `</div>`;
+      container.innerHTML = gridHtml;
+    }
+  } catch (err) {
+    console.error('Error loading schedule grid:', err);
+    container.innerHTML = `<div style="color: var(--danger); text-align: center;">Failed to load schedule grid.</div>`;
+  }
+}
+
+// FRONT DESK: Patient Search Lookup
+let fdSearchTimeout;
+function handleFrontDeskPatientSearch() {
+  clearTimeout(fdSearchTimeout);
+  fdSearchTimeout = setTimeout(async () => {
+    const query = document.getElementById('fd-patient-search').value;
+    const container = document.getElementById('fd-search-results-container');
+    const grid = document.getElementById('fd-search-grid');
+
+    if (!query.trim()) {
+      container.style.display = 'none';
+      return;
+    }
+
+    try {
+      const res = await fetch(`/api/appointments/search?query=${encodeURIComponent(query)}`);
+      const data = await res.json();
+
+      if (data.success) {
+        container.style.display = 'block';
+        if (data.appointments.length === 0) {
+          grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 20px;">No patient appointments found matching "${escapeHtml(query)}".</div>`;
+          return;
+        }
+
+        let html = '';
+        data.appointments.forEach((app) => {
+          const isCancelled = app.status === 'Cancelled';
+          html += `
+            <div class="appt-card" style="margin: 0;">
+              <span class="appt-status ${isCancelled ? 'status-cancelled' : 'status-confirmed'}">${escapeHtml(app.status)}</span>
+              <h3>👤 ${escapeHtml(app.patient_name)}</h3>
+              <div style="font-size: 0.88rem; color: var(--text-muted); margin-bottom: 10px;">📞 ${escapeHtml(app.patient_phone)}</div>
+              
+              <div style="background: var(--bg-subtle); padding: 12px; border-radius: var(--radius-md); font-size: 0.88rem;">
+                <div>👨‍⚕️ <strong>Doctor:</strong> Dr. ${escapeHtml(app.doctor_name)} (${escapeHtml(app.doctor_specialty)})</div>
+                <div>📆 <strong>Date:</strong> ${app.appointment_date} at ${app.time_slot}</div>
+                ${app.cancellation_fee > 0 ? `<div style="color: var(--danger); margin-top:4px;">⚠️ Late Cancellation Fee Charged: ₹${app.cancellation_fee}</div>` : ''}
+              </div>
+            </div>
+          `;
+        });
+        grid.innerHTML = html;
+      }
+    } catch (err) {
+      console.error('Error doing patient search:', err);
+    }
+  }, 300);
+}
+
 // Pagination Controls
 function updatePagination(pagination) {
   state.totalPages = pagination.totalPages;
@@ -266,7 +393,7 @@ function handleSortChange() {
 // Booking Modal Operations
 function openBookingModal(doctorId, docName, specialty, fee) {
   if (!state.token) {
-    showToast('Please login or register to book an appointment.', 'error');
+    showToast('Please login to book an appointment.', 'error');
     openAuthModal('login');
     return;
   }
@@ -275,7 +402,6 @@ function openBookingModal(doctorId, docName, specialty, fee) {
   document.getElementById('book-doctor-id').value = doctorId;
   document.getElementById('modal-doctor-sub').innerText = `Dr. ${docName} (${specialty}) • Consultation Fee: ₹${fee}`;
   
-  // Pre-fill user name & phone if logged in
   if (state.user) {
     document.getElementById('book-patient-name').value = state.user.name || '';
     document.getElementById('book-patient-phone').value = state.user.phone || '';
@@ -333,7 +459,7 @@ async function submitAppointment(e) {
   }
 }
 
-// Fetch Logged-in User's Appointments
+// Fetch User Appointments
 async function fetchMyAppointments() {
   const container = document.getElementById('appointments-container');
   container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px;">Fetching your appointments...</div>`;
@@ -351,11 +477,10 @@ async function fetchMyAppointments() {
     }
   } catch (err) {
     console.error('Error fetching my appointments:', err);
-    container.innerHTML = `<div style="grid-column: 1/-1; text-align: center; color: var(--danger); padding: 40px;">Network error fetching appointments.</div>`;
   }
 }
 
-// Render Appointments
+// Render User Appointments
 function renderAppointments(appts) {
   const container = document.getElementById('appointments-container');
   if (!appts || appts.length === 0) {
@@ -374,6 +499,7 @@ function renderAppointments(appts) {
   appts.forEach((app) => {
     const isEmergency = app.is_emergency === 1;
     const isCancelled = app.status === 'Cancelled';
+    const hasLateFee = app.cancellation_fee > 0;
 
     html += `
       <div class="appt-card ${isEmergency ? 'emergency' : ''}">
@@ -389,11 +515,18 @@ function renderAppointments(appts) {
           <div>⏰ <strong>Slot:</strong> ${app.time_slot}</div>
           <div>👤 <strong>Patient:</strong> ${escapeHtml(app.patient_name)} (${escapeHtml(app.patient_phone)})</div>
           ${app.symptoms ? `<div style="margin-top: 6px; color: var(--text-secondary);">📝 <em>${escapeHtml(app.symptoms)}</em></div>` : ''}
+          ${isCancelled ? `
+            <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border);">
+              <span style="font-weight: 700; color: ${hasLateFee ? 'var(--danger)' : 'var(--success)'};">
+                ${hasLateFee ? `⚠️ Late Cancellation Fee: ₹${app.cancellation_fee}` : `✅ Cancelled for FREE (in good time)`}
+              </span>
+            </div>
+          ` : ''}
         </div>
 
         ${!isCancelled ? `
           <div style="display: flex; gap: 10px;">
-            <button class="btn btn-danger btn-sm" style="flex: 1; justify-content: center;" onclick="cancelAppointment(${app.id})">Cancel</button>
+            <button class="btn btn-danger btn-sm" style="flex: 1; justify-content: center;" onclick="cancelAppointment(${app.id})">Cancel Appointment</button>
           </div>
         ` : `<div style="font-size: 0.85rem; color: var(--danger); text-align: center;">This slot has been cancelled.</div>`}
       </div>
@@ -403,18 +536,22 @@ function renderAppointments(appts) {
   container.innerHTML = html;
 }
 
-// Cancel Appointment
+// Cancel Appointment (with Late Cancellation Calculation Notice)
 async function cancelAppointment(id) {
-  if (!confirm('Are you sure you want to cancel this appointment?')) return;
+  if (!confirm('Are you sure you want to cancel this appointment?\n\nNote: Cancellations made 2+ hours in advance are FREE (₹0). Late cancellations (within 2 hours) carry a small ₹150 fee.')) return;
 
   try {
     const res = await fetch(`/api/appointments/${id}/cancel`, {
       method: 'PATCH',
-      headers: { 'Authorization': `Bearer ${state.token}` }
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${state.token}`
+      },
+      body: JSON.stringify({ reason: 'Patient requested cancellation' })
     });
     const data = await res.json();
     if (data.success) {
-      showToast(data.message, 'success');
+      showToast(data.message, data.is_late_cancellation ? 'error' : 'success');
       fetchMyAppointments();
       fetchStats();
     } else {
@@ -425,7 +562,7 @@ async function cancelAppointment(id) {
   }
 }
 
-// Fetch System Logs
+// Fetch Logs
 async function fetchLogs() {
   const container = document.getElementById('logs-container');
   try {
@@ -446,7 +583,7 @@ async function fetchLogs() {
   }
 }
 
-// Auth Modal Functions
+// Auth Functions
 function openAuthModal(tab = 'login') {
   toggleAuthTab(tab);
   document.getElementById('auth-modal').classList.add('active');
@@ -475,7 +612,6 @@ function toggleAuthTab(tab) {
   }
 }
 
-// Submit Login
 async function submitLogin(e) {
   e.preventDefault();
   const email = document.getElementById('login-email').value;
@@ -502,11 +638,10 @@ async function submitLogin(e) {
       showToast(data.message, 'error');
     }
   } catch (err) {
-    showToast('Login failed. Server error.', 'error');
+    showToast('Login failed.', 'error');
   }
 }
 
-// Submit Register
 async function submitRegister(e) {
   e.preventDefault();
   const name = document.getElementById('reg-name').value;
@@ -530,7 +665,7 @@ async function submitRegister(e) {
 
       updateAuthUI();
       closeAuthModal();
-      showToast(`Account created successfully! Welcome, ${data.user.name}!`, 'success');
+      showToast(`Account created! Welcome, ${data.user.name}!`, 'success');
     } else {
       showToast(data.message, 'error');
     }
@@ -539,7 +674,6 @@ async function submitRegister(e) {
   }
 }
 
-// Logout
 function handleLogout() {
   state.token = null;
   state.user = null;
@@ -550,7 +684,7 @@ function handleLogout() {
   switchTab('landing');
 }
 
-// Toast System
+// Toast Alert System
 function showToast(message, type = 'success') {
   const container = document.getElementById('toast-container');
   const toast = document.createElement('div');
@@ -560,10 +694,10 @@ function showToast(message, type = 'success') {
   container.appendChild(toast);
   setTimeout(() => {
     toast.remove();
-  }, 3500);
+  }, 4000);
 }
 
-// Helper XSS Escape
+// Helper Escape HTML
 function escapeHtml(str) {
   if (!str) return '';
   return String(str)
