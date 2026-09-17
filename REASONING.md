@@ -2,7 +2,7 @@
 
 **Candidate Name:** Divyansh Khinchi  
 **University Roll No:** 23ESKCS073  
-**Email:** divyanshkhinchi66@gmail.com  
+**Email:** b230538@skit.ac.in / divyanshkhinchi66@gmail.com  
 **College:** Swami Keshvanand Institute of Technology (SKIT), Jaipur  
 **Assigned Problem:** `clinic_appointments`  
 **Application Name:** CarePulse  

@@ -4,7 +4,7 @@
 > **Candidate Name:** Divyansh Khinchi  
 > **University Roll No:** 23ESKCS073  
 > **College:** SKIT Jaipur (CSE)  
-> **Email:** divyanshkhinchi66@gmail.com  
+> **Email:** b230538@skit.ac.in / divyanshkhinchi66@gmail.com  
 > **Allotted Problem Code:** `clinic_appointments`  
 
 ---
