@@ -209,11 +209,32 @@
 
 ---
 
+## 📌 PHASE 8: Round 2 Problem Twists (Level 1, Level 2, Level 3) & Final Verification
+
+### 💬 Prompt 8 — Twist Specs & System Enhancements
+**User (Divyansh Khinchi):**
+> We have received the three problem twists for Round 2 evaluation:
+> - **Level 1 Twist (T6 Lifecycle - Reschedule):** Allow rescheduling appointments (`POST /api/appointments/:id/reschedule` and `PUT /api/appointments/:id`) keeping patient and doctor same, while re-checking interval-overlap conflicts excluding current appointment ID.
+> - **Level 2 Twist (T1 Integrate - Morning Patient Reminders):** Trigger 08:00 AM morning patient reminders when clock advances (`POST /clock`), saving notification outbox messages exposed via `GET /outbox`.
+> - **Level 3 Twist (T2 Automation - Automated 30-Min Post-Start NO_SHOW Transition):** When clock advances past `start_time + 30 min` without appointment completion, auto-mark status as `NO_SHOW` and log alerts to `outbox`.
+>
+> Please implement all three twist endpoints, update the UI widgets, and run all 14 automated test cases.
+
+**AI Assistant:**
+> All three problem twists implemented and verified 100%:
+> 1. **`src/routes/appointments.js`:** Added `POST /api/appointments/:id/reschedule` & `PUT /api/appointments/:id` with `AND id != ?` overlap query to exclude the appointment being rescheduled. Added `POST /api/appointments/:id/complete`.
+> 2. **`src/routes/clock.js`:** Implemented `POST /clock` & `POST /api/clock` for simulated clock timestamp updates, morning outbox reminder generation (`notification_type = 'REMINDER'`), and 30-min post-start auto `NO_SHOW` state transition (`notification_type = 'NO_SHOW_ALERT'`). Implemented `GET /outbox` & `GET /api/outbox`.
+> 3. **Frontend UI (`public/index.html` & `public/js/app.js`):** Added Reschedule Modal, Complete button, Simulated Clock Controller widget (`POST /clock`), and Outbox Notification Feed widget (`GET /outbox`).
+> 4. **Automated Test Suite (`scratch/test_suite.js`):** Expanded from 10 to 14 test cases covering all core requirements plus Level 1, 2, and 3 twist behaviors. All 14 tests pass 100%.
+
+---
+
 ## 📌 Summary of Final Project State
 
 - **Main Application:** Full-stack Node.js + Express + SQLite + Vanilla JS SPA (`CarePulse`)
-- **Python Reference Script:** `clinic_appointments.py`
-- **Database:** `database.sqlite` (seeded with 8 verified doctors across Jaipur Clinics)
+- **Database:** `database.sqlite` (seeded with verified doctors across Jaipur Clinics, outbox, and system clock tables)
+- **Twists Implemented:** Level 1 (Reschedule), Level 2 (Morning Outbox Reminders), Level 3 (Automated 30-Min Post-Start NO_SHOW)
 - **Documentation:** `README.md`, `REASONING.md`, `AI_LOGS.md`
+- **Test Suite:** 14 automated test cases passing 100% (`node scratch/test_suite.js`)
 - **Candidate Details:** Divyansh Khinchi (`b230538@skit.ac.in` / `divyanshkhinchi66@gmail.com`)
 - **Git Repository:** `https://github.com/Divyansh-Khinchi21/clinic_appointments`

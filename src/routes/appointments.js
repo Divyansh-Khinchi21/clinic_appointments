@@ -114,7 +114,111 @@ router.post('/', optionalToken, async (req, res) => {
   }
 });
 
-// 2. GET /api/appointments/search?patientName=... (PATIENT NAME SEARCH)
+// 2. LEVEL 1 — T6 (lifecycle): RESCHEDULE APPOINTMENT TO NEW TIME (MUST STAY CONFLICT-FREE)
+const handleReschedule = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { appointment_date, start_time, end_time } = req.body;
+
+    if (!appointment_date || !start_time || !end_time) {
+      return res.status(400).json({
+        success: false,
+        message: 'appointment_date, start_time (HH:MM), and end_time (HH:MM) are required for reschedule.'
+      });
+    }
+
+    if (start_time >= end_time) {
+      return res.status(400).json({
+        success: false,
+        message: 'Validation Error: start_time must be earlier than end_time.'
+      });
+    }
+
+    const appointment = await queryGet('SELECT * FROM appointments WHERE id = ?', [id]);
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found.' });
+    }
+
+    // RE-CHECK OVERLAP FOR THE DOCTOR & NEW DATE (EXCLUDING THIS APPOINTMENT ID)
+    const overlapSql = `
+      SELECT id, patient_name, start_time, end_time 
+      FROM appointments 
+      WHERE doctor_id = ? 
+        AND appointment_date = ? 
+        AND status = 'CONFIRMED' 
+        AND id != ?
+        AND (start_time < ? AND end_time > ?)
+    `;
+
+    const existingOverlap = await queryGet(overlapSql, [
+      appointment.doctor_id,
+      appointment_date,
+      id,
+      end_time,
+      start_time
+    ]);
+
+    if (existingOverlap) {
+      return res.status(400).json({
+        success: false,
+        error: 'REJECTED_OVERLAP',
+        message: `REJECTED RESCHEDULE: New time slot (${start_time} - ${end_time}) overlaps with an existing appointment on ${appointment_date} (Patient: ${existingOverlap.patient_name}).`
+      });
+    }
+
+    // UPDATE APPOINTMENT TO NEW TIME WHILE KEEPING PATIENT & DOCTOR UNCHANGED
+    await queryRun(
+      'UPDATE appointments SET appointment_date = ?, start_time = ?, end_time = ?, status = ? WHERE id = ?',
+      [appointment_date, start_time, end_time, 'CONFIRMED', id]
+    );
+
+    await queryRun('INSERT INTO system_logs (action, details) VALUES (?, ?)', [
+      'RESCHEDULE_APPOINTMENT',
+      `Appointment #${id} for ${appointment.patient_name} rescheduled to ${appointment_date} (${start_time} - ${end_time})`
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Appointment rescheduled successfully!',
+      appointment: {
+        id: parseInt(id, 10),
+        doctor_id: appointment.doctor_id,
+        patient_id: appointment.patient_id,
+        patient_name: appointment.patient_name,
+        appointment_date,
+        start_time,
+        end_time,
+        status: 'CONFIRMED'
+      }
+    });
+  } catch (error) {
+    console.error('Reschedule Error:', error);
+    res.status(500).json({ success: false, message: 'Failed to reschedule appointment.' });
+  }
+};
+
+router.post('/:id/reschedule', optionalToken, handleReschedule);
+router.put('/:id/reschedule', optionalToken, handleReschedule);
+router.put('/:id', optionalToken, handleReschedule);
+
+// 3. POST /api/appointments/:id/complete - MARK APPOINTMENT COMPLETED (PREVENTS AUTO NO-SHOW)
+router.post('/:id/complete', optionalToken, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const appointment = await queryGet('SELECT * FROM appointments WHERE id = ?', [id]);
+    if (!appointment) {
+      return res.status(404).json({ success: false, message: 'Appointment not found.' });
+    }
+
+    await queryRun('UPDATE appointments SET status = ? WHERE id = ?', ['COMPLETED', id]);
+
+    res.json({ success: true, message: 'Appointment marked as COMPLETED.', status: 'COMPLETED' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Failed to mark completed.' });
+  }
+});
+
+// 4. GET /api/appointments/search?patientName=... (PATIENT NAME SEARCH)
 router.get('/search', async (req, res) => {
   try {
     const { patientName = '', query = '' } = req.query;
@@ -145,7 +249,7 @@ router.get('/search', async (req, res) => {
   }
 });
 
-// 3. GET /api/appointments (PAGINATION & SORTING)
+// 5. GET /api/appointments (PAGINATION & SORTING)
 router.get('/', async (req, res) => {
   try {
     const {
@@ -168,7 +272,6 @@ router.get('/', async (req, res) => {
       params.push(patient_id);
     }
 
-    // Validate sort column to prevent SQL injection
     const allowedSortColumns = {
       start_time: 'a.start_time',
       appointment_date: 'a.appointment_date',
@@ -180,7 +283,6 @@ router.get('/', async (req, res) => {
     const validSortCol = allowedSortColumns[sortBy] || 'a.start_time';
     const validOrder = order.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
 
-    // Count Total
     const countResult = await queryGet(`SELECT COUNT(*) as total FROM appointments a ${whereClause}`, params);
     const totalRecords = countResult ? countResult.total : 0;
     const totalPages = Math.ceil(totalRecords / limitNum);
@@ -223,7 +325,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// 4. GET /api/appointments/:id
+// 6. GET /api/appointments/:id
 router.get('/:id', async (req, res) => {
   try {
     const { id } = req.params;
@@ -243,7 +345,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// 5. POST /api/appointments/:id/cancel - LATE CANCELLATION FEE LOGIC (RULE 6 & TESTS 5-6)
+// 7. POST /api/appointments/:id/cancel - LATE CANCELLATION FEE LOGIC (RULE 6)
 router.post('/:id/cancel', optionalToken, async (req, res) => {
   try {
     const { id } = req.params;
@@ -263,7 +365,6 @@ router.post('/:id/cancel', optionalToken, async (req, res) => {
     const now = new Date();
     const diffInHours = (apptDateTime - now) / (1000 * 60 * 60);
 
-    // RULE 6: > 2h = ₹0 fee; <= 2h = ₹100 fee
     let cancellationFee = 0;
     let feeNotice = '';
 
@@ -275,19 +376,16 @@ router.post('/:id/cancel', optionalToken, async (req, res) => {
       feeNotice = 'Late cancellation (within 2 hours of appointment). Late cancellation fee = ₹100.';
     }
 
-    // Update appointment status & fee
     await queryRun(
       'UPDATE appointments SET status = ?, cancellation_fee = ?, cancellation_reason = ? WHERE id = ?',
       ['CANCELLED', cancellationFee, reason || feeNotice, id]
     );
 
-    // Insert into cancellations table
     await queryRun(
       'INSERT INTO cancellations (appointment_id, cancellation_fee) VALUES (?, ?)',
       [id, cancellationFee]
     );
 
-    // Audit log
     await queryRun('INSERT INTO system_logs (action, details) VALUES (?, ?)', [
       'CANCEL_APPOINTMENT',
       `Appointment #${id} cancelled. Status = CANCELLED, Fee = ₹${cancellationFee}`
@@ -303,49 +401,6 @@ router.post('/:id/cancel', optionalToken, async (req, res) => {
   } catch (error) {
     console.error('Cancel Appointment Error:', error);
     res.status(500).json({ success: false, message: 'Failed to process cancellation.' });
-  }
-});
-
-// 6. PUT /api/appointments/:id
-router.put('/:id', optionalToken, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { appointment_date, start_time, end_time, symptoms } = req.body;
-
-    const appointment = await queryGet('SELECT * FROM appointments WHERE id = ?', [id]);
-    if (!appointment) {
-      return res.status(404).json({ success: false, message: 'Appointment not found.' });
-    }
-
-    if (start_time && end_time && start_time >= end_time) {
-      return res.status(400).json({ success: false, message: 'Validation Error: start_time must be earlier than end_time.' });
-    }
-
-    const newDate = appointment_date || appointment.appointment_date;
-    const newStart = start_time || appointment.start_time;
-    const newEnd = end_time || appointment.end_time;
-
-    // Check overlap if changing time/date
-    const overlapSql = `
-      SELECT id FROM appointments 
-      WHERE doctor_id = ? AND appointment_date = ? AND status = 'CONFIRMED' AND id != ?
-        AND (start_time < ? AND end_time > ?)
-    `;
-
-    const existingOverlap = await queryGet(overlapSql, [appointment.doctor_id, newDate, id, newEnd, newStart]);
-    if (existingOverlap) {
-      return res.status(400).json({ success: false, message: 'REJECTED: Overlaps with an existing appointment.' });
-    }
-
-    await queryRun(
-      'UPDATE appointments SET appointment_date = ?, start_time = ?, end_time = ?, symptoms = ? WHERE id = ?',
-      [newDate, newStart, newEnd, symptoms || appointment.symptoms, id]
-    );
-
-    res.json({ success: true, message: 'Appointment updated successfully.' });
-  } catch (error) {
-    console.error('Update Appointment Error:', error);
-    res.status(500).json({ success: false, message: 'Failed to update appointment.' });
   }
 });
 

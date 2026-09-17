@@ -23,6 +23,7 @@ function initApp() {
   const today = new Date().toISOString().split('T')[0];
   const dateInput = document.getElementById('book-date');
   const staffDateInput = document.getElementById('staff-date-select');
+  const clockDateInput = document.getElementById('clock-sim-date');
 
   if (dateInput) {
     dateInput.min = today;
@@ -32,6 +33,10 @@ function initApp() {
     staffDateInput.min = today;
     staffDateInput.value = today;
   }
+  if (clockDateInput) {
+    clockDateInput.value = today;
+  }
+  fetchOutboxFeed();
 }
 
 function updateAuthUI() {
@@ -332,11 +337,21 @@ function renderAppointmentsList(appts, container, isPatientView) {
           ` : ''}
         </div>
 
-        ${!isCancelled ? `
-          <button class="btn btn-danger btn-sm" style="width: 100%; justify-content: center;" onclick="cancelAppointment(${app.id}, '${app.appointment_date}', '${app.start_time}')">
-            Cancel Appointment
-          </button>
-        ` : `<div style="font-size: 0.82rem; color: var(--danger); text-align: center;">Slot is CANCELLED (unblocked for others).</div>`}
+        ${app.status === 'CONFIRMED' ? `
+          <div style="display: flex; flex-direction: column; gap: 6px;">
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px;">
+              <button class="btn btn-secondary btn-sm" style="justify-content: center;" onclick="openRescheduleModal(${app.id}, '${app.appointment_date}', '${app.start_time}', '${app.end_time}')">
+                📅 Reschedule
+              </button>
+              <button class="btn btn-primary btn-sm" style="justify-content: center; background: #16a34a; border-color: #16a34a;" onclick="markCompleted(${app.id})">
+                ✅ Complete
+              </button>
+            </div>
+            <button class="btn btn-danger btn-sm" style="width: 100%; justify-content: center;" onclick="cancelAppointment(${app.id}, '${app.appointment_date}', '${app.start_time}')">
+              Cancel Appointment
+            </button>
+          </div>
+        ` : `<div style="font-size: 0.82rem; color: var(--text-muted); text-align: center; font-weight: 600;">Status: ${escapeHtml(app.status)}</div>`}
       </div>
     `;
   });
@@ -529,4 +544,139 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
+}
+
+// Reschedule Modal Handlers (Level 1 Twist)
+function openRescheduleModal(id, date, start, end) {
+  document.getElementById('reschedule-appt-id').value = id;
+  document.getElementById('reschedule-date').value = date;
+  document.getElementById('reschedule-start').value = start;
+  document.getElementById('reschedule-end').value = end;
+  document.getElementById('reschedule-modal').classList.add('active');
+}
+
+function closeRescheduleModal() {
+  document.getElementById('reschedule-modal').classList.remove('active');
+}
+
+async function submitReschedule(e) {
+  e.preventDefault();
+  const id = document.getElementById('reschedule-appt-id').value;
+  const appointment_date = document.getElementById('reschedule-date').value;
+  const start_time = document.getElementById('reschedule-start').value;
+  const end_time = document.getElementById('reschedule-end').value;
+
+  try {
+    const res = await fetch(`/api/appointments/${id}/reschedule`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': state.token ? `Bearer ${state.token}` : ''
+      },
+      body: JSON.stringify({ appointment_date, start_time, end_time })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      showToast(data.message, 'success');
+      closeRescheduleModal();
+      if (state.token) fetchPatientAppointments();
+      fetchStaffAllAppointments();
+      loadDoctorDayView();
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch (err) {
+    showToast('Failed to reschedule appointment.', 'error');
+  }
+}
+
+// Mark Completed Handler (Prevents Auto NO_SHOW)
+async function markCompleted(id) {
+  try {
+    const res = await fetch(`/api/appointments/${id}/complete`, {
+      method: 'POST',
+      headers: {
+        'Authorization': state.token ? `Bearer ${state.token}` : ''
+      }
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast('Appointment marked as COMPLETED.', 'success');
+      if (state.token) fetchPatientAppointments();
+      fetchStaffAllAppointments();
+      loadDoctorDayView();
+    }
+  } catch (err) {
+    showToast('Failed to mark appointment as completed.', 'error');
+  }
+}
+
+// Simulated Clock Trigger Handler (Level 2 & Level 3 Twists)
+async function triggerSimulatedClock() {
+  const date = document.getElementById('clock-sim-date').value;
+  const time = document.getElementById('clock-sim-time').value;
+  const msgEl = document.getElementById('clock-status-msg');
+
+  if (!date || !time) {
+    showToast('Please select simulated date and time.', 'error');
+    return;
+  }
+
+  try {
+    const res = await fetch('/clock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ date, time })
+    });
+    const data = await res.json();
+
+    if (data.success) {
+      msgEl.innerHTML = `
+        <span style="color: var(--success);">
+          ⚡ Clock Set to ${data.simulated_date} ${time} | Reminders Generated: ${data.reminders_generated} | Auto NO_SHOWs: ${data.no_shows_marked}
+        </span>
+      `;
+      showToast(`Clock advanced! Reminders: ${data.reminders_generated}, Auto NO_SHOWs: ${data.no_shows_marked}`, 'success');
+      fetchOutboxFeed();
+      fetchStaffAllAppointments();
+      loadDoctorDayView();
+    } else {
+      showToast(data.message, 'error');
+    }
+  } catch (err) {
+    showToast('Failed to advance clock.', 'error');
+  }
+}
+
+// Notification Outbox Feed Fetcher (Level 2 Twist)
+async function fetchOutboxFeed() {
+  const container = document.getElementById('outbox-feed-container');
+  if (!container) return;
+
+  try {
+    const res = await fetch('/outbox');
+    const data = await res.json();
+
+    if (data.success && data.outbox.length > 0) {
+      let html = '';
+      data.outbox.slice().reverse().forEach((item) => {
+        const isNoShow = item.notification_type === 'NO_SHOW_ALERT';
+        html += `
+          <div style="background: white; border-left: 3px solid ${isNoShow ? 'var(--danger)' : 'var(--primary)'}; padding: 8px 10px; margin-bottom: 8px; border-radius: 4px;">
+            <div style="font-weight: 700; color: ${isNoShow ? 'var(--danger)' : 'var(--primary)'}; margin-bottom: 2px;">
+              ${item.notification_type === 'NO_SHOW_ALERT' ? '🚨 AUTO NO_SHOW ALERT' : '📨 MORNING REMINDER'} — Patient: ${escapeHtml(item.patient_name)}
+            </div>
+            <div style="font-size: 0.8rem; color: var(--text-primary);">${escapeHtml(item.message)}</div>
+            <div style="font-size: 0.72rem; color: var(--text-muted); margin-top: 2px;">Sent: ${item.created_at}</div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    } else {
+      container.innerHTML = `<div style="color: var(--text-muted); text-align: center; padding: 20px;">No messages in notification outbox.</div>`;
+    }
+  } catch (err) {
+    console.error('Outbox fetch error:', err);
+  }
 }

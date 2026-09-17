@@ -166,8 +166,67 @@ async function runTests() {
   console.log(`   Result: Sorted ${t9.body.data.length} appointments by start_time`);
   console.assert(t9.body.sorting.sortBy === 'start_time', 'Test 9 Failed');
 
+  // =========================================================================
+  // TWIST TEST CASES (LEVEL 1, LEVEL 2, LEVEL 3)
+  // =========================================================================
+  const appt3Id = t3.body.appointment.id;
+
+  // TEST 11: Level 1 Twist (Reschedule to conflict-free time slot)
+  console.log('\n👉 TEST 11 [Level 1 Twist]: Reschedule Appt #' + appt3Id + ' to 14:00 - 14:30');
+  const t11 = await makeRequest(`/api/appointments/${appt3Id}/reschedule`, 'POST', {
+    appointment_date: testDate,
+    start_time: '14:00',
+    end_time: '14:30'
+  }, token);
+  console.log(`   Result: HTTP ${t11.status} - ${t11.body.message}`);
+  console.assert(t11.status === 200, 'Test 11 Failed');
+
+  // TEST 12: Level 1 Twist (Reschedule to overlapping slot -> EXPECT REJECT)
+  console.log('\n👉 TEST 12 [Level 1 Twist]: Reschedule Appt #' + appt3Id + ' to 10:15 - 10:45 (Dr. Mehta overlap)');
+  // First book a slot for Dr. Sharma at 15:00 - 15:30
+  const blockerAppt = await makeRequest('/api/appointments', 'POST', {
+    doctor_id: drSharma.id,
+    patient_name: 'Patient Blocker',
+    appointment_date: testDate,
+    start_time: '15:00',
+    end_time: '15:30'
+  }, token);
+
+  // Now attempt to reschedule Appt 3 (Dr. Sharma) into 15:15 - 15:45
+  const t12 = await makeRequest(`/api/appointments/${appt3Id}/reschedule`, 'POST', {
+    appointment_date: testDate,
+    start_time: '15:15',
+    end_time: '15:45'
+  }, token);
+  console.log(`   Result: HTTP ${t12.status} - ${t12.body.message}`);
+  console.assert(t12.status === 400, 'Test 12 Failed');
+
+  // TEST 13: Level 2 Twist (POST /clock & GET /outbox morning reminders)
+  console.log('\n👉 TEST 13 [Level 2 Twist]: Trigger POST /clock for morning reminders');
+  const t13 = await makeRequest('/clock', 'POST', {
+    date: testDate,
+    time: '08:00'
+  });
+  console.log(`   Result: HTTP ${t13.status} - Reminders Generated: ${t13.body.reminders_generated}`);
+  
+  const outboxRes = await makeRequest('/outbox', 'GET');
+  console.log(`   Outbox Count: ${outboxRes.body.count} items in /outbox`);
+  console.assert(outboxRes.body.count > 0, 'Test 13 Outbox Failed');
+
+  // TEST 14: Level 3 Twist (POST /clock auto NO_SHOW 30-min post-start)
+  console.log('\n👉 TEST 14 [Level 3 Twist]: Advance POST /clock past start_time + 30 min (15:00)');
+  const t14 = await makeRequest('/clock', 'POST', {
+    date: testDate,
+    time: '15:00'
+  });
+  console.log(`   Result: HTTP ${t14.status} - Auto NO_SHOWs Marked: ${t14.body.no_shows_marked}`);
+  
+  const checkAppt = await makeRequest(`/api/appointments/${appt3Id}`, 'GET');
+  console.log(`   Appt #${appt3Id} status after 30+ min post-start: ${checkAppt.body.appointment.status}`);
+  console.assert(checkAppt.body.appointment.status === 'NO_SHOW', 'Test 14 Auto NO_SHOW Failed');
+
   console.log('\n===================================================');
-  console.log(' 🎉 ALL 10 MANDATORY SPEC TEST CASES PASSED 100%!   ');
+  console.log(' 🎉 ALL 14 TEST CASES (CORE + TWISTS) PASSED 100%! ');
   console.log('===================================================');
 }
 

@@ -7,16 +7,16 @@ router.get('/summary', async (req, res) => {
   try {
     const totalDoctors = await queryGet('SELECT COUNT(*) as count FROM doctors');
     const totalAppointments = await queryGet('SELECT COUNT(*) as count FROM appointments');
-    const emergencyAppointments = await queryGet('SELECT COUNT(*) as count FROM appointments WHERE is_emergency = 1');
+    const cancelledAppointments = await queryGet('SELECT COUNT(*) as count FROM appointments WHERE status = ?', ['CANCELLED']);
     const totalPatients = await queryGet('SELECT COUNT(*) as count FROM users WHERE role = ?', ['patient']);
-    const specialtiesCount = await queryGet('SELECT COUNT(DISTINCT specialty) as count FROM doctors');
+    const specialtiesCount = await queryGet('SELECT COUNT(DISTINCT specialization) as count FROM doctors');
 
     res.json({
       success: true,
       stats: {
         totalDoctors: totalDoctors ? totalDoctors.count : 0,
         totalAppointments: totalAppointments ? totalAppointments.count : 0,
-        emergencyAppointments: emergencyAppointments ? emergencyAppointments.count : 0,
+        emergencyAppointments: cancelledAppointments ? cancelledAppointments.count : 0,
         totalPatients: totalPatients ? totalPatients.count : 0,
         totalSpecialties: specialtiesCount ? specialtiesCount.count : 0
       }

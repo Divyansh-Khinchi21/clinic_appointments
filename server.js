@@ -10,6 +10,7 @@ const authRoutes = require('./src/routes/auth');
 const doctorRoutes = require('./src/routes/doctors');
 const appointmentRoutes = require('./src/routes/appointments');
 const statsRoutes = require('./src/routes/stats');
+const clockRoutes = require('./src/routes/clock');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +29,12 @@ app.use('/api/doctors', doctorRoutes);
 app.use('/api/appointments', appointmentRoutes);
 app.use('/api/stats', statsRoutes);
 
+// Level 2 & 3 Twist Endpoints (POST /clock, GET /outbox)
+app.use('/clock', clockRoutes);
+app.use('/api/clock', clockRoutes);
+app.use('/outbox', clockRoutes);
+app.use('/api/outbox', clockRoutes);
+
 // Fallback to index.html for SPA routing
 app.use((req, res) => {
   if (req.path.startsWith('/api')) {
@@ -45,6 +52,7 @@ const startServer = async () => {
       console.log(`====================================================`);
       console.log(` 🏥 CarePulse Clinic Appointment Server is Running `);
       console.log(` 🚀 URL: http://localhost:${PORT}`);
+      console.log(` ⏰ Level 2 /outbox & Level 3 /clock Enabled      `);
       console.log(` 👤 Student Allotted: Divyansh Khinchi (23ESKCS073)`);
       console.log(`====================================================`);
     });

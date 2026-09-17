@@ -37,7 +37,7 @@ const initDB = async () => {
       // Enable foreign keys
       db.run('PRAGMA foreign_keys = ON');
 
-      // 1. Users Table (Role: patient / staff)
+      // 1. Users Table
       db.run(`
         CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -66,7 +66,7 @@ const initDB = async () => {
         )
       `);
 
-      // 3. Appointments Table with start_time & end_time (HH:MM)
+      // 3. Appointments Table
       db.run(`
         CREATE TABLE IF NOT EXISTS appointments (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,9 +78,10 @@ const initDB = async () => {
           start_time TEXT NOT NULL,
           end_time TEXT NOT NULL,
           symptoms TEXT,
-          status TEXT DEFAULT 'CONFIRMED',
+          status TEXT DEFAULT 'CONFIRMED', -- 'CONFIRMED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'
           cancellation_fee INTEGER DEFAULT 0,
           cancellation_reason TEXT,
+          reminded_date TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (patient_id) REFERENCES users(id),
           FOREIGN KEY (doctor_id) REFERENCES doctors(id)
@@ -98,7 +99,31 @@ const initDB = async () => {
         )
       `);
 
-      // 5. System Logs Table
+      // 5. Level 2 Outbox Table (T1 Integrate)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS outbox (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          appointment_id INTEGER NOT NULL,
+          patient_id INTEGER NOT NULL,
+          patient_name TEXT NOT NULL,
+          patient_phone TEXT,
+          message TEXT NOT NULL,
+          notification_type TEXT DEFAULT 'REMINDER',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (appointment_id) REFERENCES appointments(id)
+        )
+      `);
+
+      // 6. System Clock Table (Simulated Time for POST /clock)
+      db.run(`
+        CREATE TABLE IF NOT EXISTS system_clock (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          simulated_timestamp TEXT NOT NULL,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // 7. System Logs Table
       db.run(`
         CREATE TABLE IF NOT EXISTS system_logs (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
